@@ -75,6 +75,14 @@ final habitsProvider = FutureProvider<List<Habit>>((ref) async {
   return await db.getHabits();
 });
 
+// Habit completions by date (last 7 days) for consistency graph
+final habitCompletionsByDateProvider = FutureProvider<Map<DateTime, int>>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  return await db.getHabitCompletionsByDate(days: 7);
+});
+
 // Study tasks provider
 final studyTasksProvider = FutureProvider<List<StudyTask>>((ref) async {
   final db = ref.watch(databaseProvider);

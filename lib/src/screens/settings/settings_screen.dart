@@ -43,6 +43,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _testApiKey() async {
+    final storage = ref.read(secureStorageProvider);
+    final apiKey = await storage.getGeminiApiKey();
+
+    if (apiKey == null || apiKey.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No API key set. Please add one first.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Testing API key...')));
+    }
+
+    final geminiService = ref.read(geminiServiceProvider);
+    final result = await geminiService.testApiKey(apiKey);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success'] == true
+                ? '✅ API key is valid!'
+                : '❌ ${result['error']}',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
   Future<void> _editDailyGoals(BuildContext context) async {
     final db = ref.read(databaseProvider);
     final user = await db.getUser();
@@ -280,6 +318,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _manageApiKey(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.science),
+            title: const Text('Test API Key'),
+            subtitle: const Text('Verify your Gemini API key works'),
+            trailing: const Icon(Icons.play_arrow),
+            onTap: _testApiKey,
           ),
           ListTile(
             leading: const Icon(Icons.auto_awesome),

@@ -10,18 +10,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GeminiService {
   final Dio _dio = Dio();
 
-  // Google Gemini API endpoint
-  static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta';
+  // Google Gemini API endpoint - using v1 stable API
+  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1';
 
   // Rate limiting: max calls per day (user-facing limit for free tier warning)
   static const int maxCallsPerDay = 15;
   static const String _dailyCountKey = 'ai_daily_call_count';
   static const String _dailyCountDateKey = 'ai_daily_call_date';
 
-  // Models
-  static const String _visionModel = 'gemini-2.0-flash-exp';
-  static const String _textModel = 'gemini-2.0-flash-exp';
+  // Models - gemini-1.5-flash for v1 API
+  static const String _visionModel = 'gemini-1.5-flash';
+  static const String _textModel = 'gemini-1.5-flash';
 
   GeminiService() {
     _dio.options.connectTimeout = const Duration(seconds: 30);
@@ -85,6 +84,46 @@ class GeminiService {
     } else {
       final count = prefs.getInt(_dailyCountKey) ?? 0;
       await prefs.setInt(_dailyCountKey, count + 1);
+    }
+  }
+
+  /// Test if the API key is valid by making a simple text request
+  Future<Map<String, dynamic>> testApiKey(String apiKey) async {
+    try {
+      print('DEBUG: Testing API key...');
+      print('DEBUG: Using model: $_textModel');
+      print('DEBUG: API URL: $_baseUrl/models/$_textModel:generateContent');
+
+      final response = await _dio.post(
+        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+        data: {
+          'contents': [
+            {
+              'parts': [
+                {'text': 'Say "Hello" in one word.'},
+              ],
+            },
+          ],
+          'generationConfig': {'maxOutputTokens': 10},
+        },
+      );
+
+      print('DEBUG: API test response status: ${response.statusCode}');
+      print('DEBUG: API test response: ${response.data}');
+
+      final candidates = response.data['candidates'] as List?;
+      if (candidates != null && candidates.isNotEmpty) {
+        return {'success': true, 'message': 'API key is valid'};
+      }
+      return {'success': false, 'error': 'Unexpected response format'};
+    } on DioException catch (e) {
+      print(
+        'DEBUG: API test DioException: ${e.response?.statusCode} - ${e.response?.data}',
+      );
+      return {'success': false, 'error': _handleDioError(e)};
+    } catch (e) {
+      print('DEBUG: API test error: $e');
+      return {'success': false, 'error': 'Test failed: $e'};
     }
   }
 
@@ -217,8 +256,11 @@ class GeminiService {
     required File imageFile,
     required String apiKey,
   }) async {
+    print('DEBUG GeminiService: analyzeFoodImage called');
+
     // Check daily limit first
     if (await isDailyLimitReached()) {
+      print('DEBUG GeminiService: Daily limit reached');
       return {
         'success': false,
         'error':
@@ -228,12 +270,21 @@ class GeminiService {
     }
 
     try {
+      print('DEBUG GeminiService: Compressing image...');
       // Compress image first
       final compressedImage = await compressImage(imageFile);
+      print('DEBUG GeminiService: Image compressed');
 
       // Convert image to base64
       final bytes = await compressedImage.readAsBytes();
       final base64Image = base64Encode(bytes);
+      print(
+        'DEBUG GeminiService: Image encoded to base64 (${base64Image.length} chars)',
+      );
+      print('DEBUG GeminiService: Using model: $_visionModel');
+      print(
+        'DEBUG GeminiService: API Key (first 10 chars): ${apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length)}...',
+      );
 
       // Prepare strict JSON prompt
       final prompt =
@@ -281,12 +332,19 @@ Return ONLY the JSON object, no markdown, no explanation.''';
         },
       );
 
+      print(
+        'DEBUG GeminiService: API call successful, status: ${response.statusCode}',
+      );
+
       // Increment daily counter on successful API call
       await _incrementDailyCount();
 
       // Parse response safely
       final candidates = response.data['candidates'] as List?;
+      print('DEBUG GeminiService: Candidates: ${candidates?.length ?? 0}');
+
       if (candidates == null || candidates.isEmpty) {
+        print('DEBUG GeminiService: No candidates in response');
         return {
           'success': false,
           'error': 'No response from AI. Please try manual entry.',
@@ -296,6 +354,7 @@ Return ONLY the JSON object, no markdown, no explanation.''';
       final content = candidates[0]['content'] as Map<String, dynamic>?;
       final parts = content?['parts'] as List?;
       if (parts == null || parts.isEmpty) {
+        print('DEBUG GeminiService: No parts in response');
         return {
           'success': false,
           'error': 'Empty AI response. Please try manual entry.',
@@ -303,9 +362,13 @@ Return ONLY the JSON object, no markdown, no explanation.''';
       }
 
       final text = parts[0]['text'] as String? ?? '';
+      print(
+        'DEBUG GeminiService: Response text: ${text.length > 200 ? text.substring(0, 200) : text}...',
+      );
 
       // Use robust JSON parsing
       final result = _parseFoodAnalysisResponse(text);
+      print('DEBUG GeminiService: Parsed result: $result');
 
       if (result == null) {
         return {
@@ -319,12 +382,12 @@ Return ONLY the JSON object, no markdown, no explanation.''';
 
       return {'success': true, 'data': result};
     } on DioException catch (e) {
+      print('DEBUG GeminiService: DioException: ${e.type}, ${e.message}');
+      print('DEBUG GeminiService: Response: ${e.response?.data}');
       return {'success': false, 'error': _handleDioError(e)};
     } catch (e) {
-      return {
-        'success': false,
-        'error': 'Unexpected error. Please try manual entry.',
-      };
+      print('DEBUG GeminiService: Unexpected error: $e');
+      return {'success': false, 'error': 'Unexpected error: ${e.toString()}'};
     }
   }
 
@@ -614,15 +677,33 @@ Return ONLY the JSON object, no additional text.''';
   }
 
   String _handleDioError(DioException e) {
+    // Debug: Print full error details
+    print('DEBUG DioError: ${e.type}');
+    print('DEBUG Response status: ${e.response?.statusCode}');
+    print('DEBUG Response data: ${e.response?.data}');
+    print('DEBUG Error message: ${e.message}');
+
     if (e.response != null) {
       final statusCode = e.response!.statusCode;
+      final responseBody = e.response?.data?.toString() ?? '';
+
       if (statusCode == 429) {
-        return 'API quota exceeded. Please wait a few minutes or try manual entry.';
+        // Check if it's a rate limit or quota issue
+        if (responseBody.contains('RESOURCE_EXHAUSTED') ||
+            responseBody.contains('quota')) {
+          return 'Google API quota exhausted. The free tier has limited requests. Please wait 1-2 minutes and try again, or upgrade your API key at console.cloud.google.com';
+        }
+        return 'Too many requests. Please wait a minute and try again.';
       } else if (statusCode == 401) {
         return 'Invalid API key. Please check your Gemini API key in settings.';
+      } else if (statusCode == 403) {
+        return 'API access denied. Please verify your API key has Gemini API enabled.';
       } else if (statusCode == 404) {
         return 'API endpoint not found. Please verify your API key.';
       } else if (statusCode == 400) {
+        if (responseBody.contains('API_KEY_INVALID')) {
+          return 'Invalid API key format. Please check your Gemini API key.';
+        }
         return 'Bad request. The image may be invalid or too large.';
       } else if (statusCode == 503) {
         return 'AI service temporarily unavailable. Please try again later.';

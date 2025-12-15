@@ -309,6 +309,42 @@ class AppDatabase extends _$AppDatabase {
             ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
           .get();
 
+  /// Get all habit logs for all habits within a date range
+  Future<List<HabitLog>> getAllHabitLogsInRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) =>
+      (select(habitLogs)
+            ..where(
+              (t) =>
+                  t.completedAt.isBiggerOrEqualValue(startDate) &
+                  t.completedAt.isSmallerOrEqualValue(endDate),
+            )
+            ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
+          .get();
+
+  /// Get habit logs grouped by date for consistency tracking
+  Future<Map<DateTime, int>> getHabitCompletionsByDate({
+    required int days,
+  }) async {
+    final endDate = DateTime.now();
+    final startDate = endDate.subtract(Duration(days: days));
+
+    final logs = await getAllHabitLogsInRange(startDate, endDate);
+
+    final Map<DateTime, int> completionsByDate = {};
+    for (final log in logs) {
+      final dateKey = DateTime(
+        log.completedAt.year,
+        log.completedAt.month,
+        log.completedAt.day,
+      );
+      completionsByDate[dateKey] = (completionsByDate[dateKey] ?? 0) + 1;
+    }
+
+    return completionsByDate;
+  }
+
   // Quote cache queries
   Future<QuoteCache?> getRandomQuote() async {
     final allQuotes = await select(quoteCaches).get();

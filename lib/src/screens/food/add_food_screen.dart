@@ -96,10 +96,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
       // Calculate hash
       final hash = await geminiService.calculateFileHash(_selectedImage!);
+      print('DEBUG: Image hash calculated: $hash');
 
       // Check cache
       final cached = await db.getFoodEntryByHash(hash);
       if (cached != null) {
+        print('DEBUG: Found cached result');
         Map<String, dynamic>? macros;
         if (cached.macrosJson != null) {
           try {
@@ -124,85 +126,109 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
 
       // Try Gemini API
       final apiKey = await storage.getGeminiApiKey();
-      if (apiKey != null && apiKey.isNotEmpty) {
-        final geminiResult = await geminiService.analyzeFoodImage(
-          imageFile: _selectedImage!,
-          apiKey: apiKey,
-        );
+      print(
+        'DEBUG: API key retrieved: ${apiKey != null ? "YES (${apiKey.length} chars)" : "NO"}',
+      );
 
-        // Refresh remaining calls
-        await _loadRemainingCalls();
+      if (apiKey == null || apiKey.isEmpty) {
+        print('DEBUG: No API key, falling back to local estimate');
+        setState(() {
+          _error =
+              'No API key configured. Please add your Gemini API key in Settings, or use Manual Entry.';
+          _isProcessing = false;
+        });
+        return;
+      }
 
-        if (geminiResult['success'] == true) {
-          final data = geminiResult['data'] as Map<String, dynamic>;
+      print('DEBUG: Calling Gemini API...');
+      final geminiResult = await geminiService.analyzeFoodImage(
+        imageFile: _selectedImage!,
+        apiKey: apiKey,
+      );
+      print('DEBUG: Gemini result: $geminiResult');
+
+      // Refresh remaining calls
+      await _loadRemainingCalls();
+
+      if (geminiResult['success'] == true) {
+        final data = geminiResult['data'] as Map<String, dynamic>;
+        setState(() {
+          _result = {
+            'food_name': data['food_name'] ?? 'Unknown food',
+            'calories': data['calories'] ?? 0,
+            'protein_g': data['protein_g'] ?? 0.0,
+            'carbs_g': data['carbs_g'] ?? 0.0,
+            'fat_g': data['fat_g'] ?? 0.0,
+            'serving_size_g': data['serving_size_g'] ?? 100.0,
+            'confidence': data['confidence'] ?? 0.7,
+            'notes': data['notes'] ?? '',
+            'source': 'gemini',
+          };
+          _isProcessing = false;
+        });
+        return;
+      } else {
+        // API returned error - show friendly message and offer manual entry
+        final errorMsg = geminiResult['error'] as String? ?? 'Unknown error';
+        final limitReached = geminiResult['limitReached'] == true;
+        print('DEBUG: Gemini error: $errorMsg, limitReached: $limitReached');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                limitReached
+                    ? 'Daily AI limit reached. Try manual entry!'
+                    : 'AI estimation failed: $errorMsg',
+              ),
+              action: SnackBarAction(
+                label: 'Manual Entry',
+                onPressed: () {
+                  if (mounted) {
+                    _tabController.animateTo(1);
+                  }
+                },
+              ),
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
+
+        if (limitReached) {
           setState(() {
-            _result = {
-              'food_name': data['food_name'] ?? 'Unknown food',
-              'calories': data['calories'] ?? 0,
-              'protein_g': data['protein_g'] ?? 0.0,
-              'carbs_g': data['carbs_g'] ?? 0.0,
-              'fat_g': data['fat_g'] ?? 0.0,
-              'serving_size_g': data['serving_size_g'] ?? 100.0,
-              'confidence': data['confidence'] ?? 0.7,
-              'notes': data['notes'] ?? '',
-              'source': 'gemini',
-            };
+            _error = errorMsg;
             _isProcessing = false;
           });
           return;
-        } else {
-          // API returned error - show friendly message and offer manual entry
-          final errorMsg = geminiResult['error'] as String? ?? 'Unknown error';
-          final limitReached = geminiResult['limitReached'] == true;
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  limitReached
-                      ? 'Daily AI limit reached. Try manual entry!'
-                      : 'AI estimation failed. Using local estimate.',
-                ),
-                action: SnackBarAction(
-                  label: 'Manual Entry',
-                  onPressed: () => _tabController.animateTo(1),
-                ),
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-
-          if (limitReached) {
-            setState(() {
-              _error = errorMsg;
-              _isProcessing = false;
-            });
-            return;
-          }
         }
-      }
 
-      // Fallback to local estimate
-      final localEstimate = CalorieEstimator.estimateFromImage();
-      setState(() {
-        _result = {
-          'food_name': 'Estimated food',
-          'calories': localEstimate['calories'],
-          'protein_g': localEstimate['protein_g'],
-          'carbs_g': localEstimate['carbs_g'],
-          'fat_g': localEstimate['fat_g'],
-          'serving_size_g': localEstimate['serving_size_g'],
-          'confidence': 0.4,
-          'notes': 'Local estimate - consider manual entry for accuracy',
-          'source': 'fallback',
-        };
-        _isProcessing = false;
-      });
+        // Fallback to local estimate on API error
+        print('DEBUG: Falling back to local estimate');
+        final localEstimate = CalorieEstimator.estimateFromImage();
+        setState(() {
+          _result = {
+            'food_name': 'Estimated food',
+            'calories': localEstimate['calories'],
+            'protein_g': localEstimate['protein_g'],
+            'carbs_g': localEstimate['carbs_g'],
+            'fat_g': localEstimate['fat_g'],
+            'serving_size_g': localEstimate['serving_size_g'],
+            'confidence': 0.4,
+            'notes': 'Local estimate - consider manual entry for accuracy',
+            'source': 'fallback',
+          };
+          _isProcessing = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Estimation failed. Please try manual entry.';
-        _isProcessing = false;
-      });
+      print('DEBUG: Exception in _estimateCalories: $e');
+      if (mounted) {
+        setState(() {
+          _error =
+              'Estimation failed: ${e.toString().substring(0, e.toString().length > 100 ? 100 : e.toString().length)}';
+          _isProcessing = false;
+        });
+      }
     }
   }
 

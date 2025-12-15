@@ -194,10 +194,13 @@ class _DietPlanScreenState extends ConsumerState<DietPlanScreen> {
         });
       }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to generate diet plan. Please try again.';
-        _isGenerating = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error =
+              'Failed to generate diet plan: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e.toString()}';
+          _isGenerating = false;
+        });
+      }
     }
   }
 

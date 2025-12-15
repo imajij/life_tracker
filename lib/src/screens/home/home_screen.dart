@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
+import '../../widgets/habit_consistency_graph.dart';
 import '../food/add_food_screen.dart';
 import '../water/water_tracker_screen.dart';
 import '../habits/habits_screen.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
     final todayCaloriesAsync = ref.watch(todayCaloriesProvider);
     final todayWaterAsync = ref.watch(todayWaterIntakeProvider);
     final habitsAsync = ref.watch(habitsProvider);
+    final habitCompletionsAsync = ref.watch(habitCompletionsByDateProvider);
 
     return Scaffold(
       extendBodyBehindAppBar: false,
@@ -60,6 +62,7 @@ class HomeScreen extends ConsumerWidget {
             ref.invalidate(todayCaloriesProvider);
             ref.invalidate(todayWaterIntakeProvider);
             ref.invalidate(habitsProvider);
+            ref.invalidate(habitCompletionsByDateProvider);
           },
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -224,6 +227,34 @@ class HomeScreen extends ConsumerWidget {
                         error: (_, __) => const Text('Error loading habits'),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Habit Consistency Graph
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: habitCompletionsAsync.when(
+                    data: (completions) {
+                      final totalHabits = habitsAsync.value?.length ?? 0;
+                      return HabitConsistencyGraph(
+                        completionsByDate: completions,
+                        totalHabits: totalHabits,
+                        daysToShow: 7,
+                      );
+                    },
+                    loading: () => const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (_, __) => const SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: Text('Error loading consistency data'),
+                      ),
+                    ),
                   ),
                 ),
               ),
