@@ -7,6 +7,7 @@ import '../habits/habits_screen.dart';
 import '../study/study_tasks_screen.dart';
 import '../workouts/workouts_screen.dart';
 import '../settings/settings_screen.dart';
+import '../diet/diet_plan_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -200,7 +201,7 @@ class HomeScreen extends ConsumerWidget {
                             return const Text('No habits yet. Create one!');
                           }
                           return Column(
-                            children: habits.take(3).map((habit) {
+                            children: habits.map((habit) {
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: const Icon(
@@ -303,6 +304,19 @@ class HomeScreen extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const StudyTasksScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.restaurant_menu,
+                    label: 'Diet Plan',
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DietPlanScreen(),
                         ),
                       );
                     },

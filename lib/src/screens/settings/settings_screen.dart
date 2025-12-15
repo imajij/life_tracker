@@ -1,11 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
+import '../../services/gemini_service.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _editDailyGoals(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  int _remainingCalls = 0;
+  int _currentCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAIUsage();
+  }
+
+  Future<void> _loadAIUsage() async {
+    final geminiService = ref.read(geminiServiceProvider);
+    final remaining = await geminiService.getRemainingCalls();
+    final count = await geminiService.getCurrentCount();
+    if (mounted) {
+      setState(() {
+        _remainingCalls = remaining;
+        _currentCount = count;
+      });
+    }
+  }
+
+  Future<void> _resetAICounter() async {
+    final geminiService = ref.read(geminiServiceProvider);
+    await geminiService.resetDailyCount();
+    await _loadAIUsage();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI counter reset successfully!')),
+      );
+    }
+  }
+
+  Future<void> _editDailyGoals(BuildContext context) async {
     final db = ref.read(databaseProvider);
     final user = await db.getUser();
 
@@ -94,7 +132,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _manageApiKey(BuildContext context, WidgetRef ref) async {
+  Future<void> _manageApiKey(BuildContext context) async {
     final storage = ref.read(secureStorageProvider);
     final hasKey = await storage.hasGeminiApiKey();
 
@@ -170,13 +208,13 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _exportData(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportData(BuildContext context) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Data export feature will be implemented')),
     );
   }
 
-  Future<void> _resetApp(BuildContext context, WidgetRef ref) async {
+  Future<void> _resetApp(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -210,7 +248,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final hasKeyAsync = ref.watch(hasApiKeyProvider);
     final userAsync = ref.watch(currentUserProvider);
 
@@ -229,7 +267,7 @@ class SettingsScreen extends ConsumerWidget {
               error: (_, __) => const Text('Error'),
             ),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _editDailyGoals(context, ref),
+            onTap: () => _editDailyGoals(context),
           ),
           const Divider(),
           ListTile(
@@ -241,7 +279,18 @@ class SettingsScreen extends ConsumerWidget {
               error: (_, __) => const Text('Error'),
             ),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _manageApiKey(context, ref),
+            onTap: () => _manageApiKey(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_awesome),
+            title: const Text('AI Usage Today'),
+            subtitle: Text(
+              'Used: $_currentCount / ${GeminiService.maxCallsPerDay} calls ($_remainingCalls remaining)',
+            ),
+            trailing: TextButton(
+              onPressed: _resetAICounter,
+              child: const Text('Reset'),
+            ),
           ),
           const Divider(),
           ListTile(
@@ -249,7 +298,7 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Export Data'),
             subtitle: const Text('Export all your data as JSON'),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _exportData(context, ref),
+            onTap: () => _exportData(context),
           ),
           ListTile(
             leading: const Icon(Icons.upload),
@@ -270,7 +319,7 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Reset App', style: TextStyle(color: Colors.red)),
             subtitle: const Text('Delete all data and start fresh'),
             trailing: const Icon(Icons.arrow_forward_ios, color: Colors.red),
-            onTap: () => _resetApp(context, ref),
+            onTap: () => _resetApp(context),
           ),
           const Divider(),
           const ListTile(

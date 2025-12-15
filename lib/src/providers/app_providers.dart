@@ -36,6 +36,12 @@ final hasApiKeyProvider = FutureProvider<bool>((ref) async {
   return await storage.hasGeminiApiKey();
 });
 
+// AI remaining calls provider
+final aiRemainingCallsProvider = FutureProvider<int>((ref) async {
+  final geminiService = ref.watch(geminiServiceProvider);
+  return await geminiService.getRemainingCalls();
+});
+
 // Food entries for today
 final todayFoodEntriesProvider = FutureProvider<List<FoodEntry>>((ref) async {
   final db = ref.watch(databaseProvider);
@@ -93,4 +99,19 @@ final sleepLogsProvider = FutureProvider<List<SleepLog>>((ref) async {
   final now = DateTime.now();
   final weekAgo = now.subtract(const Duration(days: 7));
   return await db.getSleepLogs(startDate: weekAgo, endDate: now);
+});
+
+// Diet plans provider
+final dietPlansProvider = FutureProvider<List<DietPlan>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return await db.getDietPlans();
+});
+
+// Active diet plan provider
+final activeDietPlanProvider = FutureProvider<DietPlan?>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final storage = ref.watch(secureStorageProvider);
+  final userId = await storage.getUserId();
+  if (userId == null) return null;
+  return await db.getActiveDietPlan(userId);
 });

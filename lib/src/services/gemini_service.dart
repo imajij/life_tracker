@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GeminiService {
   final Dio _dio = Dio();
@@ -13,8 +14,10 @@ class GeminiService {
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta';
 
-  // Rate limiting: max calls per day
-  static const int maxCallsPerDay = 600;
+  // Rate limiting: max calls per day (user-facing limit for free tier warning)
+  static const int maxCallsPerDay = 15;
+  static const String _dailyCountKey = 'ai_daily_call_count';
+  static const String _dailyCountDateKey = 'ai_daily_call_date';
 
   // Models
   static const String _visionModel = 'gemini-2.0-flash-exp';
@@ -22,7 +25,165 @@ class GeminiService {
 
   GeminiService() {
     _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.receiveTimeout = const Duration(seconds: 60);
+  }
+
+  /// Reset the daily AI call counter (for debugging/testing)
+  Future<void> resetDailyCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_dailyCountKey, 0);
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    await prefs.setString(_dailyCountDateKey, today);
+  }
+
+  /// Get current count for debugging
+  Future<int> getCurrentCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_dailyCountKey) ?? 0;
+  }
+
+  /// Check if daily AI call limit is reached
+  Future<bool> isDailyLimitReached() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final storedDate = prefs.getString(_dailyCountDateKey);
+
+    if (storedDate != today) {
+      // New day, reset counter
+      await prefs.setInt(_dailyCountKey, 0);
+      await prefs.setString(_dailyCountDateKey, today);
+      return false;
+    }
+
+    final count = prefs.getInt(_dailyCountKey) ?? 0;
+    return count >= maxCallsPerDay;
+  }
+
+  /// Get remaining AI calls for today
+  Future<int> getRemainingCalls() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final storedDate = prefs.getString(_dailyCountDateKey);
+
+    if (storedDate != today) {
+      return maxCallsPerDay;
+    }
+
+    final count = prefs.getInt(_dailyCountKey) ?? 0;
+    return (maxCallsPerDay - count).clamp(0, maxCallsPerDay);
+  }
+
+  /// Increment the daily AI call counter
+  Future<void> _incrementDailyCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final storedDate = prefs.getString(_dailyCountDateKey);
+
+    if (storedDate != today) {
+      await prefs.setString(_dailyCountDateKey, today);
+      await prefs.setInt(_dailyCountKey, 1);
+    } else {
+      final count = prefs.getInt(_dailyCountKey) ?? 0;
+      await prefs.setInt(_dailyCountKey, count + 1);
+    }
+  }
+
+  /// Safely extract JSON from AI response text
+  /// Handles markdown code blocks, extra text, and various formats
+  String? _extractJsonFromText(String text) {
+    if (text.isEmpty) return null;
+
+    String cleaned = text.trim();
+
+    // Try to find JSON in markdown code blocks first
+    final jsonBlockRegex = RegExp(r'```(?:json)?\s*([\s\S]*?)```');
+    final blockMatch = jsonBlockRegex.firstMatch(cleaned);
+    if (blockMatch != null) {
+      cleaned = blockMatch.group(1)?.trim() ?? cleaned;
+    }
+
+    // Try to find JSON object pattern
+    final jsonObjectRegex = RegExp(r'\{[\s\S]*\}');
+    final objectMatch = jsonObjectRegex.firstMatch(cleaned);
+    if (objectMatch != null) {
+      return objectMatch.group(0);
+    }
+
+    // Try to find JSON array pattern
+    final jsonArrayRegex = RegExp(r'\[[\s\S]*\]');
+    final arrayMatch = jsonArrayRegex.firstMatch(cleaned);
+    if (arrayMatch != null) {
+      return arrayMatch.group(0);
+    }
+
+    return null;
+  }
+
+  /// Safely parse JSON with validation and defaults
+  Map<String, dynamic>? _safeParseJson(
+    String? jsonStr, {
+    List<String>? requiredFields,
+    Map<String, dynamic>? defaults,
+  }) {
+    if (jsonStr == null || jsonStr.isEmpty) return null;
+
+    try {
+      final decoded = json.decode(jsonStr);
+      if (decoded is! Map<String, dynamic>) return null;
+
+      final result = Map<String, dynamic>.from(decoded);
+
+      // Apply defaults for missing fields
+      if (defaults != null) {
+        for (final entry in defaults.entries) {
+          result[entry.key] ??= entry.value;
+        }
+      }
+
+      // Check required fields
+      if (requiredFields != null) {
+        for (final field in requiredFields) {
+          if (!result.containsKey(field) || result[field] == null) {
+            return null;
+          }
+        }
+      }
+
+      return result;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Parse food analysis response with validation
+  Map<String, dynamic>? _parseFoodAnalysisResponse(String responseText) {
+    final jsonStr = _extractJsonFromText(responseText);
+    return _safeParseJson(
+      jsonStr,
+      requiredFields: ['calories'],
+      defaults: {
+        'protein_g': 0.0,
+        'carbs_g': 0.0,
+        'fat_g': 0.0,
+        'serving_size_g': 100.0,
+        'confidence': 0.7,
+        'notes': 'AI estimation',
+        'food_name': 'Unknown food',
+      },
+    );
+  }
+
+  /// Parse diet plan response with validation
+  Map<String, dynamic>? _parseDietPlanResponse(String responseText) {
+    final jsonStr = _extractJsonFromText(responseText);
+    return _safeParseJson(
+      jsonStr,
+      requiredFields: ['daily_calorie_target', 'plan'],
+      defaults: {
+        'macros': {'protein_g': 0, 'carbs_g': 0, 'fat_g': 0},
+        'notes': '',
+      },
+    );
   }
 
   /// Calculate SHA256 hash of a file
@@ -32,7 +193,7 @@ class GeminiService {
     return digest.toString();
   }
 
-  /// Compress image before sending to API
+  /// Compress image before sending to API (optimized for calorie scanning)
   Future<File> compressImage(File file) async {
     final dir = await getTemporaryDirectory();
     final targetPath = p.join(
@@ -43,9 +204,9 @@ class GeminiService {
     final compressedFile = await FlutterImageCompress.compressAndGetFile(
       file.absolute.path,
       targetPath,
-      quality: 85,
-      minWidth: 1024,
-      minHeight: 1024,
+      quality: 70,
+      minWidth: 512,
+      minHeight: 512,
     );
 
     return compressedFile != null ? File(compressedFile.path) : file;
@@ -56,6 +217,16 @@ class GeminiService {
     required File imageFile,
     required String apiKey,
   }) async {
+    // Check daily limit first
+    if (await isDailyLimitReached()) {
+      return {
+        'success': false,
+        'error':
+            'Daily AI limit reached ($maxCallsPerDay calls/day). Try manual entry or wait until tomorrow.',
+        'limitReached': true,
+      };
+    }
+
     try {
       // Compress image first
       final compressedImage = await compressImage(imageFile);
@@ -64,21 +235,25 @@ class GeminiService {
       final bytes = await compressedImage.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      // Prepare prompt
+      // Prepare strict JSON prompt
       final prompt =
-          '''Analyze this food image and return ONLY a valid JSON object with the following schema:
+          '''You are a nutrition estimation system. Analyze the provided food image.
+Return ONLY a valid JSON object and no extra text.
+
+JSON schema:
 {
-  "calories": number,
-  "serving_size_g": number,
-  "protein_g": number,
-  "carbs_g": number,
-  "fat_g": number,
-  "confidence": number (0.0 to 1.0),
-  "notes": "string describing the food items and estimation methodology"
+  "food_name": string (name of the food item),
+  "calories": number (estimated calories),
+  "serving_size_g": number (estimated serving size in grams),
+  "protein_g": number (protein in grams),
+  "carbs_g": number (carbohydrates in grams),
+  "fat_g": number (fat in grams),
+  "confidence": number (0.0 to 1.0, how confident you are),
+  "notes": string (brief description of the food and methodology)
 }
 
-Use conservative estimates when uncertain. Set confidence lower if the image quality is poor or food items are hard to identify.
-Return ONLY the JSON object, no additional text.''';
+If uncertain, estimate conservatively and reduce confidence.
+Return ONLY the JSON object, no markdown, no explanation.''';
 
       // Make API call
       final response = await _dio.post(
@@ -98,38 +273,58 @@ Return ONLY the JSON object, no additional text.''';
             },
           ],
           'generationConfig': {
-            'temperature': 0.4,
+            'temperature': 0.3,
             'topK': 32,
             'topP': 1,
-            'maxOutputTokens': 2048,
+            'maxOutputTokens': 1024,
           },
         },
       );
 
-      // Parse response
-      final text =
-          response.data['candidates'][0]['content']['parts'][0]['text']
-              as String;
+      // Increment daily counter on successful API call
+      await _incrementDailyCount();
 
-      // Extract JSON from response (handle markdown code blocks)
-      String jsonStr = text.trim();
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.substring(7);
-      } else if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.substring(3);
+      // Parse response safely
+      final candidates = response.data['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No response from AI. Please try manual entry.',
+        };
       }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
-      }
-      jsonStr = jsonStr.trim();
 
-      final result = json.decode(jsonStr) as Map<String, dynamic>;
+      final content = candidates[0]['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List?;
+      if (parts == null || parts.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Empty AI response. Please try manual entry.',
+        };
+      }
+
+      final text = parts[0]['text'] as String? ?? '';
+
+      // Use robust JSON parsing
+      final result = _parseFoodAnalysisResponse(text);
+
+      if (result == null) {
+        return {
+          'success': false,
+          'error': 'Could not parse AI response. Please try manual entry.',
+          'rawResponse': text.length > 200
+              ? '${text.substring(0, 200)}...'
+              : text,
+        };
+      }
 
       return {'success': true, 'data': result};
     } on DioException catch (e) {
       return {'success': false, 'error': _handleDioError(e)};
     } catch (e) {
-      return {'success': false, 'error': 'Failed to parse response: $e'};
+      return {
+        'success': false,
+        'error': 'Unexpected error. Please try manual entry.',
+      };
     }
   }
 
@@ -201,29 +396,157 @@ Return ONLY the JSON object, no additional text.''';
         },
       );
 
-      final text =
-          response.data['candidates'][0]['content']['parts'][0]['text']
-              as String;
-
-      // Extract JSON
-      String jsonStr = text.trim();
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.substring(7);
-      } else if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.substring(3);
+      // Parse response safely
+      final candidates = response.data['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) {
+        return {'success': false, 'error': 'No response from AI.'};
       }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
-      }
-      jsonStr = jsonStr.trim();
 
-      final result = json.decode(jsonStr) as Map<String, dynamic>;
+      final content = candidates[0]['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List?;
+      if (parts == null || parts.isEmpty) {
+        return {'success': false, 'error': 'Empty AI response.'};
+      }
+
+      final text = parts[0]['text'] as String? ?? '';
+      final jsonStr = _extractJsonFromText(text);
+      final result = _safeParseJson(jsonStr, requiredFields: ['plan']);
+
+      if (result == null) {
+        return {
+          'success': false,
+          'error': 'Could not parse workout plan response.',
+        };
+      }
 
       return {'success': true, 'data': result};
     } on DioException catch (e) {
       return {'success': false, 'error': _handleDioError(e)};
     } catch (e) {
-      return {'success': false, 'error': 'Failed to generate workout plan: $e'};
+      return {
+        'success': false,
+        'error': 'Failed to generate workout plan. Please try again.',
+      };
+    }
+  }
+
+  /// Generate 7-day diet plan based on user profile
+  Future<Map<String, dynamic>> generateDietPlan({
+    required String apiKey,
+    required Map<String, dynamic> userProfile,
+  }) async {
+    // Check daily limit first
+    if (await isDailyLimitReached()) {
+      return {
+        'success': false,
+        'error':
+            'Daily AI limit reached ($maxCallsPerDay calls/day). Please try again tomorrow.',
+        'limitReached': true,
+      };
+    }
+
+    try {
+      final prompt =
+          '''You are a certified nutrition planner. Create a 7-day diet plan based on the user profile provided.
+Return ONLY valid JSON and no extra text.
+
+User Profile:
+- Age: ${userProfile['age']} years
+- Gender: ${userProfile['gender']}
+- Height: ${userProfile['height_cm']} cm
+- Weight: ${userProfile['weight_kg']} kg
+- Goal: ${userProfile['goal']} (lose/gain/maintain weight)
+- Activity Level: ${userProfile['activity_level']} (low/medium/high)
+- Diet Type: ${userProfile['diet_type']} (veg/non-veg/mixed)
+- Meals per Day: ${userProfile['meals_per_day']}
+
+JSON schema:
+{
+  "daily_calorie_target": number,
+  "macros": {
+    "protein_g": number,
+    "carbs_g": number,
+    "fat_g": number
+  },
+  "plan": [
+    {
+      "day": "Monday",
+      "meals": [
+        {
+          "meal": "Breakfast",
+          "items": ["string item 1", "string item 2"],
+          "calories": number
+        }
+      ]
+    }
+  ],
+  "notes": "string with general recommendations"
+}
+
+Keep recommendations realistic, safe, and culturally appropriate.
+Return ONLY the JSON object, no markdown, no explanation.''';
+
+      final response = await _dio.post(
+        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+        data: {
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt},
+              ],
+            },
+          ],
+          'generationConfig': {
+            'temperature': 0.6,
+            'topK': 40,
+            'topP': 0.95,
+            'maxOutputTokens': 8192,
+          },
+        },
+      );
+
+      // Increment daily counter on successful API call
+      await _incrementDailyCount();
+
+      // Parse response safely
+      final candidates = response.data['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No response from AI. Please try again.',
+        };
+      }
+
+      final content = candidates[0]['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List?;
+      if (parts == null || parts.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Empty AI response. Please try again.',
+        };
+      }
+
+      final text = parts[0]['text'] as String? ?? '';
+      final result = _parseDietPlanResponse(text);
+
+      if (result == null) {
+        return {
+          'success': false,
+          'error': 'Could not parse diet plan. Please try again.',
+          'rawResponse': text.length > 200
+              ? '${text.substring(0, 200)}...'
+              : text,
+        };
+      }
+
+      return {'success': true, 'data': result};
+    } on DioException catch (e) {
+      return {'success': false, 'error': _handleDioError(e)};
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Failed to generate diet plan. Please try again.',
+      };
     }
   }
 
@@ -262,29 +585,31 @@ Return ONLY the JSON object, no additional text.''';
         },
       );
 
-      final text =
-          response.data['candidates'][0]['content']['parts'][0]['text']
-              as String;
-
-      // Extract JSON
-      String jsonStr = text.trim();
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.substring(7);
-      } else if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.substring(3);
+      // Parse response safely
+      final candidates = response.data['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) {
+        return {'success': false, 'error': 'No response from AI.'};
       }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
-      }
-      jsonStr = jsonStr.trim();
 
-      final result = json.decode(jsonStr) as Map<String, dynamic>;
+      final content = candidates[0]['content'] as Map<String, dynamic>?;
+      final parts = content?['parts'] as List?;
+      if (parts == null || parts.isEmpty) {
+        return {'success': false, 'error': 'Empty AI response.'};
+      }
+
+      final text = parts[0]['text'] as String? ?? '';
+      final jsonStr = _extractJsonFromText(text);
+      final result = _safeParseJson(jsonStr, requiredFields: ['text']);
+
+      if (result == null) {
+        return {'success': false, 'error': 'Could not parse quote response.'};
+      }
 
       return {'success': true, 'data': result};
     } on DioException catch (e) {
       return {'success': false, 'error': _handleDioError(e)};
     } catch (e) {
-      return {'success': false, 'error': 'Failed to get quote: $e'};
+      return {'success': false, 'error': 'Failed to get quote.'};
     }
   }
 
@@ -292,20 +617,24 @@ Return ONLY the JSON object, no additional text.''';
     if (e.response != null) {
       final statusCode = e.response!.statusCode;
       if (statusCode == 429) {
-        return 'API quota exceeded. Free tier: 15 requests/minute, 1500/day. Please wait a few minutes or upgrade your API key at https://ai.google.dev/pricing';
+        return 'API quota exceeded. Please wait a few minutes or try manual entry.';
       } else if (statusCode == 401) {
         return 'Invalid API key. Please check your Gemini API key in settings.';
       } else if (statusCode == 404) {
-        return 'API endpoint not found. Please verify your API key is valid for Gemini 1.5 models.';
+        return 'API endpoint not found. Please verify your API key.';
       } else if (statusCode == 400) {
         return 'Bad request. The image may be invalid or too large.';
+      } else if (statusCode == 503) {
+        return 'AI service temporarily unavailable. Please try again later.';
       }
-      return 'API error ($statusCode): ${e.response!.data}';
+      return 'API error ($statusCode). Please try again.';
     } else if (e.type == DioExceptionType.connectionTimeout) {
       return 'Connection timeout. Please check your internet connection.';
     } else if (e.type == DioExceptionType.receiveTimeout) {
       return 'Request timeout. Please try again.';
+    } else if (e.type == DioExceptionType.connectionError) {
+      return 'No internet connection. Please check your network.';
     }
-    return 'Network error: ${e.message}';
+    return 'Network error. Please check your connection and try again.';
   }
 }

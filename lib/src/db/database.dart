@@ -131,6 +131,20 @@ class ApiCallLogs extends Table {
   TextColumn get errorMessage => text().nullable()();
 }
 
+// Diet plan table for AI-generated diet plans
+class DietPlans extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().references(Users, #id)();
+  TextColumn get goal => text()(); // 'lose', 'gain', 'maintain'
+  IntColumn get targetCalories => integer()();
+  TextColumn get planJson => text()(); // Full meal plan JSON
+  TextColumn get profileHash =>
+      text()(); // Hash of user profile for cache invalidation
+  TextColumn get source => text()(); // 'gemini', 'manual'
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(
   tables: [
     Users,
@@ -144,13 +158,14 @@ class ApiCallLogs extends Table {
     HabitLogs,
     QuoteCaches,
     ApiCallLogs,
+    DietPlans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -158,10 +173,14 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from == 1) {
+      if (from < 2) {
         // Add new columns to users table
         await m.addColumn(users, users.dailyWaterGoalMl);
         await m.addColumn(users, users.dailyCalorieGoal);
+      }
+      if (from < 3) {
+        // Add diet plans table
+        await m.createTable(dietPlans);
       }
     },
   );
@@ -318,4 +337,38 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> insertApiCallLog(ApiCallLogsCompanion log) =>
       into(apiCallLogs).insert(log);
+
+  // Diet plan queries
+  Future<List<DietPlan>> getDietPlans() => (select(
+    dietPlans,
+  )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+
+  Future<DietPlan?> getActiveDietPlan(int userId) =>
+      (select(dietPlans)
+            ..where((t) => t.userId.equals(userId) & t.isActive.equals(true))
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<DietPlan?> getDietPlanByProfileHash(int userId, String profileHash) =>
+      (select(dietPlans)
+            ..where(
+              (t) =>
+                  t.userId.equals(userId) & t.profileHash.equals(profileHash),
+            )
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<int> insertDietPlan(DietPlansCompanion plan) =>
+      into(dietPlans).insert(plan);
+
+  Future<void> deactivateAllDietPlans(int userId) async {
+    await (update(dietPlans)..where((t) => t.userId.equals(userId))).write(
+      const DietPlansCompanion(isActive: Value(false)),
+    );
+  }
+
+  Future<int> deleteDietPlan(int id) =>
+      (delete(dietPlans)..where((t) => t.id.equals(id))).go();
 }
