@@ -10,8 +10,10 @@ LazyDatabase createDriftConnection() {
     );
 
     if (result.missingFeatures.isNotEmpty) {
-      print('Using ${result.chosenImplementation} due to unsupported '
-          'browser features: ${result.missingFeatures}');
+      print(
+        'Using ${result.chosenImplementation} due to unsupported '
+        'browser features: ${result.missingFeatures}',
+      );
     }
 
     return result.resolvedExecutor;
