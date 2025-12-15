@@ -1,0 +1,71 @@
+name: life_tracker
+description: "Local-first Flutter app to track calories, workouts, water, sleep, study, and habits with Gemini AI integration."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  
+  # State management
+  flutter_riverpod: ^2.5.1
+  
+  # Database
+  drift: ^2.20.3
+  sqlite3_flutter_libs: ^0.5.24
+  sqlite3: ^2.4.6
+  sqlite3_web: ^0.1.1
+  drift_web: ^2.0.0
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  
+  # Secure storage
+  flutter_secure_storage: ^9.2.2
+  
+  # HTTP client
+  dio: ^5.7.0
+  
+  # Image handling
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+  
+  # Utilities
+  crypto: ^3.0.5
+  intl: ^0.19.0
+  
+  # Background tasks (optional)
+  # workmanager: ^0.5.2
+  
+  # Permissions
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  
+  # Drift code generation
+  drift_dev: ^2.20.3
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/quotes.json
