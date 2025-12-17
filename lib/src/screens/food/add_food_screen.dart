@@ -272,6 +272,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         ),
       );
 
+      // Refresh the providers so home screen updates
+      ref.invalidate(todayFoodEntriesProvider);
+      ref.invalidate(todayCaloriesProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -325,6 +329,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
           ),
         ),
       );
+
+      // Refresh the providers so home screen updates
+      ref.invalidate(todayFoodEntriesProvider);
+      ref.invalidate(todayCaloriesProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(
