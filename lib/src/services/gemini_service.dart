@@ -10,15 +10,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GeminiService {
   final Dio _dio = Dio();
 
-  // Google Gemini API endpoint - using v1 stable API
-  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1';
+  // Google Gemini API endpoint - using v1beta for Gemini 1.5 models
+  static const String _baseUrl =
+      'https://generativelanguage.googleapis.com/v1beta';
 
   // Rate limiting: max calls per day (user-facing limit for free tier warning)
   static const int maxCallsPerDay = 15;
   static const String _dailyCountKey = 'ai_daily_call_count';
   static const String _dailyCountDateKey = 'ai_daily_call_date';
 
-  // Models - gemini-1.5-flash for v1 API
+  // Models - gemini-1.5-flash for v1beta API (correct model ID)
   static const String _visionModel = 'gemini-1.5-flash';
   static const String _textModel = 'gemini-1.5-flash';
 
@@ -35,6 +36,29 @@ class GeminiService {
     await prefs.setString(_dailyCountDateKey, today);
   }
 
+  /// Ensure daily AI counter is initialized (prevents false limit hit)
+  Future<void> _ensureDailyCounterInitialized() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    final hasDate = prefs.containsKey(_dailyCountDateKey);
+    final hasCount = prefs.containsKey(_dailyCountKey);
+
+    if (!hasDate || !hasCount) {
+      await prefs.setString(_dailyCountDateKey, today);
+      await prefs.setInt(_dailyCountKey, 0);
+      print('DEBUG GeminiService: Daily counter initialized');
+      return;
+    }
+
+    final storedDate = prefs.getString(_dailyCountDateKey);
+    if (storedDate != today) {
+      await prefs.setString(_dailyCountDateKey, today);
+      await prefs.setInt(_dailyCountKey, 0);
+      print('DEBUG GeminiService: New day detected, counter reset');
+    }
+  }
+
   /// Get current count for debugging
   Future<int> getCurrentCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,48 +67,33 @@ class GeminiService {
 
   /// Check if daily AI call limit is reached
   Future<bool> isDailyLimitReached() async {
+    await _ensureDailyCounterInitialized();
+
     final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final storedDate = prefs.getString(_dailyCountDateKey);
-
-    if (storedDate != today) {
-      // New day, reset counter
-      await prefs.setInt(_dailyCountKey, 0);
-      await prefs.setString(_dailyCountDateKey, today);
-      return false;
-    }
-
     final count = prefs.getInt(_dailyCountKey) ?? 0;
+
     return count >= maxCallsPerDay;
   }
 
   /// Get remaining AI calls for today
   Future<int> getRemainingCalls() async {
+    await _ensureDailyCounterInitialized();
+
     final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final storedDate = prefs.getString(_dailyCountDateKey);
-
-    if (storedDate != today) {
-      return maxCallsPerDay;
-    }
-
     final count = prefs.getInt(_dailyCountKey) ?? 0;
+
     return (maxCallsPerDay - count).clamp(0, maxCallsPerDay);
   }
 
   /// Increment the daily AI call counter
   Future<void> _incrementDailyCount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final storedDate = prefs.getString(_dailyCountDateKey);
+    await _ensureDailyCounterInitialized();
 
-    if (storedDate != today) {
-      await prefs.setString(_dailyCountDateKey, today);
-      await prefs.setInt(_dailyCountKey, 1);
-    } else {
-      final count = prefs.getInt(_dailyCountKey) ?? 0;
-      await prefs.setInt(_dailyCountKey, count + 1);
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final count = prefs.getInt(_dailyCountKey) ?? 0;
+
+    await prefs.setInt(_dailyCountKey, count + 1);
+    print('DEBUG GeminiService: Daily count incremented to ${count + 1}');
   }
 
   /// Test if the API key is valid by making a simple text request
@@ -256,6 +265,7 @@ class GeminiService {
     required File imageFile,
     required String apiKey,
   }) async {
+    await _ensureDailyCounterInitialized();
     print('DEBUG GeminiService: analyzeFoodImage called');
 
     // Check daily limit first
@@ -282,6 +292,9 @@ class GeminiService {
         'DEBUG GeminiService: Image encoded to base64 (${base64Image.length} chars)',
       );
       print('DEBUG GeminiService: Using model: $_visionModel');
+      print(
+        'DEBUG GeminiService: Full URL: $_baseUrl/models/$_visionModel:generateContent',
+      );
       print(
         'DEBUG GeminiService: API Key (first 10 chars): ${apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length)}...',
       );
@@ -498,6 +511,8 @@ Return ONLY the JSON object, no additional text.''';
     required String apiKey,
     required Map<String, dynamic> userProfile,
   }) async {
+    await _ensureDailyCounterInitialized();
+
     // Check daily limit first
     if (await isDailyLimitReached()) {
       return {
