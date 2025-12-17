@@ -9,6 +9,8 @@ import '../study/study_tasks_screen.dart';
 import '../workouts/workouts_screen.dart';
 import '../settings/settings_screen.dart';
 import '../diet/diet_plan_screen.dart';
+import '../weight/weight_tracking_screen.dart';
+import '../exercise/exercise_library_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,7 @@ class HomeScreen extends ConsumerWidget {
     final todayWaterAsync = ref.watch(todayWaterIntakeProvider);
     final habitsAsync = ref.watch(habitsProvider);
     final habitCompletionsAsync = ref.watch(habitCompletionsByDateProvider);
+    final latestWeightAsync = ref.watch(latestWeightProvider);
 
     return Scaffold(
       extendBodyBehindAppBar: false,
@@ -178,6 +181,100 @@ class HomeScreen extends ConsumerWidget {
                         error: (_, __) => const Text('Error loading'),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Weight Tracking Card
+              Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WeightTrackingScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Weight',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: Colors.grey.shade400,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        latestWeightAsync.when(
+                          data: (weightLog) {
+                            if (weightLog == null) {
+                              return const Text(
+                                'No weight logged yet',
+                                style: TextStyle(color: Colors.grey),
+                              );
+                            }
+                            final initialWeight =
+                                userAsync.value?.weightKg ?? weightLog.weightKg;
+                            final diff = weightLog.weightKg - initialWeight;
+                            final diffStr = diff >= 0
+                                ? '+${diff.toStringAsFixed(1)}'
+                                : diff.toStringAsFixed(1);
+                            return Row(
+                              children: [
+                                Text(
+                                  '${weightLog.weightKg.toStringAsFixed(1)} kg',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: diff < 0
+                                        ? Colors.green.withOpacity(0.2)
+                                        : Colors.orange.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '$diffStr kg',
+                                    style: TextStyle(
+                                      color: diff < 0
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => const CircularProgressIndicator(),
+                          error: (_, __) => const Text('Error loading'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -348,6 +445,32 @@ class HomeScreen extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const DietPlanScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.monitor_weight,
+                    label: 'Weight',
+                    color: Colors.purple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const WeightTrackingScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.sports_gymnastics,
+                    label: 'Exercises',
+                    color: Colors.amber,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ExerciseLibraryScreen(),
                         ),
                       );
                     },

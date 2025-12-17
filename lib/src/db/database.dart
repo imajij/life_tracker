@@ -145,6 +145,59 @@ class DietPlans extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+// Weight log table for tracking weight over time
+class WeightLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().references(Users, #id)();
+  RealColumn get weightKg => real()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get loggedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+// Exercise library - predefined gym exercises
+class ExerciseLibrary extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get category =>
+      text()(); // 'chest', 'back', 'shoulders', 'arms', 'legs', 'core', 'cardio'
+  TextColumn get muscleGroup => text()(); // Primary muscle targeted
+  TextColumn get equipment =>
+      text()(); // 'barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'
+  TextColumn get description => text().nullable()();
+  TextColumn get instructions => text().nullable()();
+  BoolColumn get isCustom => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+// Manual exercise plans created by user
+class ManualExercisePlans extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().references(Users, #id)();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get planJson => text()(); // JSON with exercises, sets, reps
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+// Food database with predefined macros
+class FoodDatabase extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get category =>
+      text()(); // 'grains', 'proteins', 'dairy', 'fruits', 'vegetables', 'snacks', 'beverages'
+  TextColumn get servingUnit => text()(); // 'g', 'ml', 'piece', 'cup', 'tbsp'
+  RealColumn get servingSize => real()(); // Standard serving size
+  RealColumn get caloriesPer100g => real()();
+  RealColumn get proteinPer100g => real()();
+  RealColumn get carbsPer100g => real()();
+  RealColumn get fatPer100g => real()();
+  RealColumn get fiberPer100g => real().withDefault(const Constant(0.0))();
+  BoolColumn get isCustom => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(
   tables: [
     Users,
@@ -159,13 +212,17 @@ class DietPlans extends Table {
     QuoteCaches,
     ApiCallLogs,
     DietPlans,
+    WeightLogs,
+    ExerciseLibrary,
+    ManualExercisePlans,
+    FoodDatabase,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -181,6 +238,13 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         // Add diet plans table
         await m.createTable(dietPlans);
+      }
+      if (from < 4) {
+        // Add weight tracking, exercise library, manual plans, food database
+        await m.createTable(weightLogs);
+        await m.createTable(exerciseLibrary);
+        await m.createTable(manualExercisePlans);
+        await m.createTable(foodDatabase);
       }
     },
   );
@@ -407,4 +471,136 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteDietPlan(int id) =>
       (delete(dietPlans)..where((t) => t.id.equals(id))).go();
+
+  // Weight log queries
+  Future<List<WeightLog>> getWeightLogs({int? userId, int? limit}) {
+    final query = select(weightLogs);
+    if (userId != null) {
+      query.where((t) => t.userId.equals(userId));
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.loggedAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
+  }
+
+  Future<WeightLog?> getLatestWeightLog(int userId) =>
+      (select(weightLogs)
+            ..where((t) => t.userId.equals(userId))
+            ..orderBy([(t) => OrderingTerm.desc(t.loggedAt)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<int> insertWeightLog(WeightLogsCompanion log) =>
+      into(weightLogs).insert(log);
+
+  Future<int> deleteWeightLog(int id) =>
+      (delete(weightLogs)..where((t) => t.id.equals(id))).go();
+
+  // Exercise library queries
+  Future<List<ExerciseLibraryData>> getExercises({
+    String? category,
+    String? equipment,
+  }) {
+    final query = select(exerciseLibrary);
+    if (category != null) {
+      query.where((t) => t.category.equals(category));
+    }
+    if (equipment != null) {
+      query.where((t) => t.equipment.equals(equipment));
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.get();
+  }
+
+  Future<List<ExerciseLibraryData>> searchExercises(String searchTerm) {
+    return (select(exerciseLibrary)
+          ..where((t) => t.name.like('%$searchTerm%'))
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        .get();
+  }
+
+  Future<int> insertExercise(ExerciseLibraryCompanion exercise) =>
+      into(exerciseLibrary).insert(exercise);
+
+  Future<void> insertExercises(List<ExerciseLibraryCompanion> exercises) async {
+    await batch((batch) {
+      batch.insertAll(exerciseLibrary, exercises);
+    });
+  }
+
+  Future<int> getExerciseCount() async {
+    final count = await select(exerciseLibrary).get();
+    return count.length;
+  }
+
+  // Manual exercise plan queries
+  Future<List<ManualExercisePlan>> getManualExercisePlans({int? userId}) {
+    final query = select(manualExercisePlans);
+    if (userId != null) {
+      query.where((t) => t.userId.equals(userId));
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    return query.get();
+  }
+
+  Future<ManualExercisePlan?> getActiveManualPlan(int userId) =>
+      (select(manualExercisePlans)
+            ..where((t) => t.userId.equals(userId) & t.isActive.equals(true))
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<int> insertManualExercisePlan(ManualExercisePlansCompanion plan) =>
+      into(manualExercisePlans).insert(plan);
+
+  Future<bool> updateManualExercisePlan(ManualExercisePlan plan) =>
+      update(manualExercisePlans).replace(plan);
+
+  Future<int> deleteManualExercisePlan(int id) =>
+      (delete(manualExercisePlans)..where((t) => t.id.equals(id))).go();
+
+  Future<void> setActivePlan(int planId) async {
+    // First, deactivate all plans
+    await (update(manualExercisePlans)..where((t) => t.isActive.equals(true)))
+        .write(const ManualExercisePlansCompanion(isActive: Value(false)));
+    // Then activate the selected plan
+    await (update(manualExercisePlans)..where((t) => t.id.equals(planId)))
+        .write(const ManualExercisePlansCompanion(isActive: Value(true)));
+  }
+
+  // Food database queries
+  Future<List<FoodDatabaseData>> getFoods({String? category}) {
+    final query = select(foodDatabase);
+    if (category != null) {
+      query.where((t) => t.category.equals(category));
+    }
+    query.orderBy([(t) => OrderingTerm.asc(t.name)]);
+    return query.get();
+  }
+
+  Future<List<FoodDatabaseData>> searchFoods(String searchTerm) {
+    return (select(foodDatabase)
+          ..where((t) => t.name.like('%$searchTerm%'))
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        .get();
+  }
+
+  Future<int> insertFood(FoodDatabaseCompanion food) =>
+      into(foodDatabase).insert(food);
+
+  Future<void> insertFoods(List<FoodDatabaseCompanion> foods) async {
+    await batch((batch) {
+      batch.insertAll(foodDatabase, foods);
+    });
+  }
+
+  Future<int> getFoodCount() async {
+    final count = await select(foodDatabase).get();
+    return count.length;
+  }
+
+  Future<int> deleteFood(int id) =>
+      (delete(foodDatabase)..where((t) => t.id.equals(id))).go();
 }

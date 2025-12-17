@@ -71,3 +71,5 @@ flutter:
 
   assets:
     - assets/quotes.json
+    - assets/exercise_library.json
+    - assets/food_database.json

@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../db/database.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/calorie_estimator.dart';
+import 'food_picker_screen.dart';
 
 enum FoodEntryMode { aiScan, manual }
 
@@ -697,6 +698,39 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Quick add from database button
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FoodPickerScreen()),
+                );
+              },
+              icon: const Icon(Icons.restaurant_menu),
+              label: const Text('Pick from Food Database'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                side: BorderSide(color: theme.colorScheme.primary),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Or divider
+            Row(
+              children: [
+                Expanded(child: Divider(color: Colors.grey.shade600)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'OR',
+                    style: TextStyle(color: Colors.grey.shade400),
+                  ),
+                ),
+                Expanded(child: Divider(color: Colors.grey.shade600)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
             // Info card
             Container(
               padding: const EdgeInsets.all(12),

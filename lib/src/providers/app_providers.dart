@@ -123,3 +123,75 @@ final activeDietPlanProvider = FutureProvider<DietPlan?>((ref) async {
   if (userId == null) return null;
   return await db.getActiveDietPlan(userId);
 });
+
+// Weight logs provider
+final weightLogsProvider = FutureProvider<List<WeightLog>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return [];
+  return await db.getWeightLogs(userId: user.id);
+});
+
+// Latest weight provider
+final latestWeightProvider = FutureProvider<WeightLog?>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return null;
+  return await db.getLatestWeightLog(user.id);
+});
+
+// Exercise library provider
+final exerciseLibraryProvider = FutureProvider<List<ExerciseLibraryData>>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  return await db.getExercises();
+});
+
+// Exercise library by category provider
+final exercisesByCategoryProvider =
+    FutureProvider.family<List<ExerciseLibraryData>, String?>((
+      ref,
+      category,
+    ) async {
+      final db = ref.watch(databaseProvider);
+      return await db.getExercises(category: category);
+    });
+
+// Manual exercise plans provider
+final manualExercisePlansProvider = FutureProvider<List<ManualExercisePlan>>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return [];
+  return await db.getManualExercisePlans(userId: user.id);
+});
+
+// Active manual plan provider
+final activeManualPlanProvider = FutureProvider<ManualExercisePlan?>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return null;
+  return await db.getActiveManualPlan(user.id);
+});
+
+// Food database provider
+final foodDatabaseProvider = FutureProvider<List<FoodDatabaseData>>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  return await db.getFoods();
+});
+
+// Food by category provider
+final foodsByCategoryProvider =
+    FutureProvider.family<List<FoodDatabaseData>, String?>((
+      ref,
+      category,
+    ) async {
+      final db = ref.watch(databaseProvider);
+      return await db.getFoods(category: category);
+    });

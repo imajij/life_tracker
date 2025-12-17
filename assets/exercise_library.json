@@ -1,0 +1,546 @@
+{
+  "exercises": [
+    {
+      "name": "Barbell Bench Press",
+      "category": "Chest",
+      "muscle_group": "Pectoralis Major",
+      "equipment": "Barbell",
+      "description": "Classic chest exercise for building mass and strength",
+      "instructions": "Lie on bench, grip bar slightly wider than shoulders, lower to chest, press up"
+    },
+    {
+      "name": "Incline Dumbbell Press",
+      "category": "Chest",
+      "muscle_group": "Upper Chest",
+      "equipment": "Dumbbell",
+      "description": "Targets upper chest muscles",
+      "instructions": "Set bench to 30-45 degrees, press dumbbells up and together"
+    },
+    {
+      "name": "Decline Bench Press",
+      "category": "Chest",
+      "muscle_group": "Lower Chest",
+      "equipment": "Barbell",
+      "description": "Emphasizes lower chest development",
+      "instructions": "Lie on decline bench, grip bar, lower to lower chest, press up"
+    },
+    {
+      "name": "Dumbbell Flyes",
+      "category": "Chest",
+      "muscle_group": "Pectoralis Major",
+      "equipment": "Dumbbell",
+      "description": "Isolation exercise for chest stretch and contraction",
+      "instructions": "Lie flat, arms extended, lower dumbbells in arc motion, squeeze chest to return"
+    },
+    {
+      "name": "Cable Crossover",
+      "category": "Chest",
+      "muscle_group": "Pectoralis Major",
+      "equipment": "Cable",
+      "description": "Great for chest definition and constant tension",
+      "instructions": "Stand between cables, bring handles together in front of chest"
+    },
+    {
+      "name": "Push-Ups",
+      "category": "Chest",
+      "muscle_group": "Pectoralis Major",
+      "equipment": "Bodyweight",
+      "description": "Classic bodyweight chest exercise",
+      "instructions": "Hands shoulder-width, lower chest to floor, push back up"
+    },
+    {
+      "name": "Chest Dips",
+      "category": "Chest",
+      "muscle_group": "Lower Chest",
+      "equipment": "Bodyweight",
+      "description": "Compound movement for chest and triceps",
+      "instructions": "Lean forward on dip bars, lower body, push up"
+    },
+    {
+      "name": "Pec Deck Machine",
+      "category": "Chest",
+      "muscle_group": "Pectoralis Major",
+      "equipment": "Machine",
+      "description": "Isolation machine for chest",
+      "instructions": "Sit, grip handles, bring arms together in front"
+    },
+
+    {
+      "name": "Deadlift",
+      "category": "Back",
+      "muscle_group": "Erector Spinae",
+      "equipment": "Barbell",
+      "description": "King of compound exercises for overall back development",
+      "instructions": "Grip bar, keep back straight, drive through heels, stand up"
+    },
+    {
+      "name": "Barbell Row",
+      "category": "Back",
+      "muscle_group": "Latissimus Dorsi",
+      "equipment": "Barbell",
+      "description": "Builds thickness in the middle back",
+      "instructions": "Bend over, pull bar to lower chest, squeeze shoulder blades"
+    },
+    {
+      "name": "Pull-Ups",
+      "category": "Back",
+      "muscle_group": "Latissimus Dorsi",
+      "equipment": "Bodyweight",
+      "description": "Classic back width builder",
+      "instructions": "Hang from bar, pull chest to bar, lower with control"
+    },
+    {
+      "name": "Lat Pulldown",
+      "category": "Back",
+      "muscle_group": "Latissimus Dorsi",
+      "equipment": "Cable",
+      "description": "Machine alternative to pull-ups",
+      "instructions": "Grip bar wide, pull to upper chest, control the return"
+    },
+    {
+      "name": "Seated Cable Row",
+      "category": "Back",
+      "muscle_group": "Middle Back",
+      "equipment": "Cable",
+      "description": "Excellent for back thickness",
+      "instructions": "Sit, grip handle, pull to midsection, squeeze back"
+    },
+    {
+      "name": "One-Arm Dumbbell Row",
+      "category": "Back",
+      "muscle_group": "Latissimus Dorsi",
+      "equipment": "Dumbbell",
+      "description": "Unilateral back exercise for muscle balance",
+      "instructions": "Support on bench, pull dumbbell to hip, lower with control"
+    },
+    {
+      "name": "T-Bar Row",
+      "category": "Back",
+      "muscle_group": "Middle Back",
+      "equipment": "Barbell",
+      "description": "Builds thickness in the middle back",
+      "instructions": "Straddle bar, grip handle, pull to chest"
+    },
+    {
+      "name": "Face Pulls",
+      "category": "Back",
+      "muscle_group": "Rear Deltoids",
+      "equipment": "Cable",
+      "description": "Great for rear delts and upper back health",
+      "instructions": "Pull rope to face level, externally rotate at end"
+    },
+    {
+      "name": "Hyperextensions",
+      "category": "Back",
+      "muscle_group": "Erector Spinae",
+      "equipment": "Bodyweight",
+      "description": "Strengthens lower back",
+      "instructions": "Lock feet, lower upper body, raise to parallel"
+    },
+
+    {
+      "name": "Overhead Press",
+      "category": "Shoulders",
+      "muscle_group": "Anterior Deltoid",
+      "equipment": "Barbell",
+      "description": "Primary shoulder mass builder",
+      "instructions": "Press bar overhead from shoulders, lock out arms"
+    },
+    {
+      "name": "Dumbbell Shoulder Press",
+      "category": "Shoulders",
+      "muscle_group": "Anterior Deltoid",
+      "equipment": "Dumbbell",
+      "description": "Allows natural range of motion for shoulders",
+      "instructions": "Press dumbbells overhead, bring together at top"
+    },
+    {
+      "name": "Lateral Raises",
+      "category": "Shoulders",
+      "muscle_group": "Lateral Deltoid",
+      "equipment": "Dumbbell",
+      "description": "Isolation for side delts and shoulder width",
+      "instructions": "Raise dumbbells to sides until parallel to floor"
+    },
+    {
+      "name": "Front Raises",
+      "category": "Shoulders",
+      "muscle_group": "Anterior Deltoid",
+      "equipment": "Dumbbell",
+      "description": "Targets front shoulder",
+      "instructions": "Raise dumbbells in front to shoulder height"
+    },
+    {
+      "name": "Rear Delt Flyes",
+      "category": "Shoulders",
+      "muscle_group": "Posterior Deltoid",
+      "equipment": "Dumbbell",
+      "description": "Isolation for rear delts",
+      "instructions": "Bend over, raise dumbbells to sides"
+    },
+    {
+      "name": "Arnold Press",
+      "category": "Shoulders",
+      "muscle_group": "All Deltoids",
+      "equipment": "Dumbbell",
+      "description": "Hits all three delt heads in one motion",
+      "instructions": "Start palms facing you, rotate as you press up"
+    },
+    {
+      "name": "Upright Row",
+      "category": "Shoulders",
+      "muscle_group": "Lateral Deltoid",
+      "equipment": "Barbell",
+      "description": "Compound shoulder and trap exercise",
+      "instructions": "Pull bar up to chin level, elbows high"
+    },
+    {
+      "name": "Shrugs",
+      "category": "Shoulders",
+      "muscle_group": "Trapezius",
+      "equipment": "Dumbbell",
+      "description": "Isolates the trap muscles",
+      "instructions": "Hold dumbbells at sides, shrug shoulders up"
+    },
+
+    {
+      "name": "Barbell Curl",
+      "category": "Arms",
+      "muscle_group": "Biceps",
+      "equipment": "Barbell",
+      "description": "Classic bicep mass builder",
+      "instructions": "Curl bar up, keep elbows stationary"
+    },
+    {
+      "name": "Dumbbell Curl",
+      "category": "Arms",
+      "muscle_group": "Biceps",
+      "equipment": "Dumbbell",
+      "description": "Allows supination for full bicep contraction",
+      "instructions": "Curl dumbbells up, rotate palms up as you curl"
+    },
+    {
+      "name": "Hammer Curl",
+      "category": "Arms",
+      "muscle_group": "Brachialis",
+      "equipment": "Dumbbell",
+      "description": "Targets brachialis and forearms",
+      "instructions": "Curl with palms facing each other"
+    },
+    {
+      "name": "Preacher Curl",
+      "category": "Arms",
+      "muscle_group": "Biceps",
+      "equipment": "Barbell",
+      "description": "Isolation curl on preacher bench",
+      "instructions": "Rest arms on pad, curl bar up"
+    },
+    {
+      "name": "Cable Curl",
+      "category": "Arms",
+      "muscle_group": "Biceps",
+      "equipment": "Cable",
+      "description": "Constant tension bicep exercise",
+      "instructions": "Stand at low cable, curl handle up"
+    },
+    {
+      "name": "Tricep Pushdown",
+      "category": "Arms",
+      "muscle_group": "Triceps",
+      "equipment": "Cable",
+      "description": "Classic tricep isolation",
+      "instructions": "Push bar down, keep elbows at sides"
+    },
+    {
+      "name": "Skull Crushers",
+      "category": "Arms",
+      "muscle_group": "Triceps",
+      "equipment": "Barbell",
+      "description": "Lying tricep extension",
+      "instructions": "Lower bar to forehead, extend arms"
+    },
+    {
+      "name": "Overhead Tricep Extension",
+      "category": "Arms",
+      "muscle_group": "Triceps",
+      "equipment": "Dumbbell",
+      "description": "Stretches and targets long head of triceps",
+      "instructions": "Hold dumbbell overhead, lower behind head, extend"
+    },
+    {
+      "name": "Dips",
+      "category": "Arms",
+      "muscle_group": "Triceps",
+      "equipment": "Bodyweight",
+      "description": "Compound tricep builder",
+      "instructions": "Keep body upright, lower and press up"
+    },
+    {
+      "name": "Close Grip Bench Press",
+      "category": "Arms",
+      "muscle_group": "Triceps",
+      "equipment": "Barbell",
+      "description": "Compound tricep and chest exercise",
+      "instructions": "Grip bar narrowly, press up"
+    },
+    {
+      "name": "Wrist Curls",
+      "category": "Arms",
+      "muscle_group": "Forearms",
+      "equipment": "Barbell",
+      "description": "Forearm flexor exercise",
+      "instructions": "Rest forearms on bench, curl wrists up"
+    },
+
+    {
+      "name": "Barbell Squat",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Barbell",
+      "description": "King of leg exercises",
+      "instructions": "Bar on upper back, squat down, drive up"
+    },
+    {
+      "name": "Front Squat",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Barbell",
+      "description": "Emphasizes quads and core",
+      "instructions": "Bar on front delts, squat down, drive up"
+    },
+    {
+      "name": "Leg Press",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Machine",
+      "description": "Machine compound leg exercise",
+      "instructions": "Press platform away, lower with control"
+    },
+    {
+      "name": "Leg Extension",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Machine",
+      "description": "Quad isolation exercise",
+      "instructions": "Extend legs, squeeze at top"
+    },
+    {
+      "name": "Leg Curl",
+      "category": "Legs",
+      "muscle_group": "Hamstrings",
+      "equipment": "Machine",
+      "description": "Hamstring isolation",
+      "instructions": "Curl pad toward glutes"
+    },
+    {
+      "name": "Romanian Deadlift",
+      "category": "Legs",
+      "muscle_group": "Hamstrings",
+      "equipment": "Barbell",
+      "description": "Stretches and strengthens hamstrings",
+      "instructions": "Hinge at hips, lower bar along legs"
+    },
+    {
+      "name": "Walking Lunges",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Dumbbell",
+      "description": "Unilateral leg exercise",
+      "instructions": "Step forward into lunge, alternate legs"
+    },
+    {
+      "name": "Bulgarian Split Squat",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Dumbbell",
+      "description": "Single leg squat variation",
+      "instructions": "Rear foot elevated, squat on front leg"
+    },
+    {
+      "name": "Calf Raises",
+      "category": "Legs",
+      "muscle_group": "Calves",
+      "equipment": "Machine",
+      "description": "Standing calf exercise",
+      "instructions": "Rise onto toes, lower with control"
+    },
+    {
+      "name": "Seated Calf Raises",
+      "category": "Legs",
+      "muscle_group": "Soleus",
+      "equipment": "Machine",
+      "description": "Targets the soleus muscle",
+      "instructions": "Sit, raise heels, lower with control"
+    },
+    {
+      "name": "Hip Thrusts",
+      "category": "Legs",
+      "muscle_group": "Glutes",
+      "equipment": "Barbell",
+      "description": "Best glute isolation exercise",
+      "instructions": "Back on bench, drive hips up with bar"
+    },
+    {
+      "name": "Goblet Squat",
+      "category": "Legs",
+      "muscle_group": "Quadriceps",
+      "equipment": "Dumbbell",
+      "description": "Great for squat form and depth",
+      "instructions": "Hold dumbbell at chest, squat deep"
+    },
+
+    {
+      "name": "Plank",
+      "category": "Core",
+      "muscle_group": "Rectus Abdominis",
+      "equipment": "Bodyweight",
+      "description": "Isometric core stability exercise",
+      "instructions": "Hold push-up position on forearms"
+    },
+    {
+      "name": "Crunches",
+      "category": "Core",
+      "muscle_group": "Rectus Abdominis",
+      "equipment": "Bodyweight",
+      "description": "Basic ab exercise",
+      "instructions": "Curl shoulders toward hips"
+    },
+    {
+      "name": "Hanging Leg Raises",
+      "category": "Core",
+      "muscle_group": "Lower Abs",
+      "equipment": "Bodyweight",
+      "description": "Advanced lower ab exercise",
+      "instructions": "Hang from bar, raise legs to parallel"
+    },
+    {
+      "name": "Cable Crunch",
+      "category": "Core",
+      "muscle_group": "Rectus Abdominis",
+      "equipment": "Cable",
+      "description": "Weighted ab exercise",
+      "instructions": "Kneel at cable, crunch down toward floor"
+    },
+    {
+      "name": "Russian Twists",
+      "category": "Core",
+      "muscle_group": "Obliques",
+      "equipment": "Bodyweight",
+      "description": "Rotational core exercise",
+      "instructions": "Sit, lean back, rotate side to side"
+    },
+    {
+      "name": "Ab Wheel Rollout",
+      "category": "Core",
+      "muscle_group": "Rectus Abdominis",
+      "equipment": "Bodyweight",
+      "description": "Advanced core stability",
+      "instructions": "Roll wheel out, maintain flat back, roll back"
+    },
+    {
+      "name": "Dead Bug",
+      "category": "Core",
+      "muscle_group": "Core Stability",
+      "equipment": "Bodyweight",
+      "description": "Core stability and coordination",
+      "instructions": "Lie on back, alternate extending opposite arm and leg"
+    },
+    {
+      "name": "Mountain Climbers",
+      "category": "Core",
+      "muscle_group": "Core Stability",
+      "equipment": "Bodyweight",
+      "description": "Dynamic core and cardio exercise",
+      "instructions": "In push-up position, alternate driving knees to chest"
+    },
+    {
+      "name": "Side Plank",
+      "category": "Core",
+      "muscle_group": "Obliques",
+      "equipment": "Bodyweight",
+      "description": "Lateral core stability",
+      "instructions": "Support on one forearm, hold body straight"
+    },
+
+    {
+      "name": "Treadmill Running",
+      "category": "Cardio",
+      "muscle_group": "Cardiovascular",
+      "equipment": "Machine",
+      "description": "Indoor running exercise",
+      "instructions": "Set pace and incline, run for desired duration"
+    },
+    {
+      "name": "Stationary Bike",
+      "category": "Cardio",
+      "muscle_group": "Cardiovascular",
+      "equipment": "Machine",
+      "description": "Low impact cardio",
+      "instructions": "Set resistance, pedal at desired intensity"
+    },
+    {
+      "name": "Rowing Machine",
+      "category": "Cardio",
+      "muscle_group": "Full Body",
+      "equipment": "Machine",
+      "description": "Full body cardio exercise",
+      "instructions": "Push with legs, pull with arms, return"
+    },
+    {
+      "name": "Elliptical",
+      "category": "Cardio",
+      "muscle_group": "Cardiovascular",
+      "equipment": "Machine",
+      "description": "Low impact full body cardio",
+      "instructions": "Step on, move in elliptical motion"
+    },
+    {
+      "name": "Stair Climber",
+      "category": "Cardio",
+      "muscle_group": "Legs",
+      "equipment": "Machine",
+      "description": "Intense lower body cardio",
+      "instructions": "Climb stairs at desired pace"
+    },
+    {
+      "name": "Jump Rope",
+      "category": "Cardio",
+      "muscle_group": "Full Body",
+      "equipment": "Bodyweight",
+      "description": "Classic cardio exercise",
+      "instructions": "Jump over rope, maintain rhythm"
+    },
+    {
+      "name": "Burpees",
+      "category": "Cardio",
+      "muscle_group": "Full Body",
+      "equipment": "Bodyweight",
+      "description": "High intensity full body exercise",
+      "instructions": "Squat, jump to plank, push-up, jump up"
+    },
+    {
+      "name": "Box Jumps",
+      "category": "Cardio",
+      "muscle_group": "Legs",
+      "equipment": "Bodyweight",
+      "description": "Plyometric leg exercise",
+      "instructions": "Jump onto box, step down, repeat"
+    },
+    {
+      "name": "Battle Ropes",
+      "category": "Cardio",
+      "muscle_group": "Upper Body",
+      "equipment": "Bodyweight",
+      "description": "Upper body cardio conditioning",
+      "instructions": "Create waves with heavy ropes"
+    },
+    {
+      "name": "Kettlebell Swings",
+      "category": "Cardio",
+      "muscle_group": "Posterior Chain",
+      "equipment": "Kettlebell",
+      "description": "Hip hinge power exercise",
+      "instructions": "Hinge at hips, swing kettlebell to shoulder height"
+    }
+  ]
+}
