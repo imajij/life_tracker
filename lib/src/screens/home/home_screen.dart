@@ -11,6 +11,7 @@ import '../settings/settings_screen.dart';
 import '../diet/diet_plan_screen.dart';
 import '../weight/weight_tracking_screen.dart';
 import '../exercise/exercise_library_screen.dart';
+import '../pomodoro/pomodoro_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -471,6 +472,19 @@ class HomeScreen extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const ExerciseLibraryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.timer,
+                    label: 'Pomodoro',
+                    color: Colors.red,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PomodoroScreen(),
                         ),
                       );
                     },

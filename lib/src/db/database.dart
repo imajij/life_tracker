@@ -198,6 +198,38 @@ class FoodDatabase extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+// Pomodoro sessions for focus tracking
+class PomodoroSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().references(Users, #id)();
+  IntColumn get durationMinutes => integer()(); // Duration of the session
+  TextColumn get sessionType => text()(); // 'work', 'short_break', 'long_break'
+  TextColumn get taskName =>
+      text().nullable()(); // What the user was working on
+  BoolColumn get completed => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get startedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+}
+
+// Pomodoro settings per user
+class PomodoroSettings extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().references(Users, #id)();
+  IntColumn get workDuration =>
+      integer().withDefault(const Constant(25))(); // minutes
+  IntColumn get shortBreakDuration =>
+      integer().withDefault(const Constant(5))(); // minutes
+  IntColumn get longBreakDuration =>
+      integer().withDefault(const Constant(15))(); // minutes
+  IntColumn get sessionsBeforeLongBreak =>
+      integer().withDefault(const Constant(4))();
+  BoolColumn get autoStartBreaks =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get autoStartWork =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(
   tables: [
     Users,
@@ -216,13 +248,15 @@ class FoodDatabase extends Table {
     ExerciseLibrary,
     ManualExercisePlans,
     FoodDatabase,
+    PomodoroSessions,
+    PomodoroSettings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -245,6 +279,11 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(exerciseLibrary);
         await m.createTable(manualExercisePlans);
         await m.createTable(foodDatabase);
+      }
+      if (from < 5) {
+        // Add pomodoro tables
+        await m.createTable(pomodoroSessions);
+        await m.createTable(pomodoroSettings);
       }
     },
   );
@@ -603,4 +642,82 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteFood(int id) =>
       (delete(foodDatabase)..where((t) => t.id.equals(id))).go();
+
+  // Pomodoro queries
+  Future<List<PomodoroSession>> getPomodoroSessions({
+    int? userId,
+    DateTime? date,
+  }) {
+    final query = select(pomodoroSessions);
+    if (userId != null) {
+      query.where((t) => t.userId.equals(userId));
+    }
+    if (date != null) {
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+      query.where(
+        (t) =>
+            t.startedAt.isBiggerOrEqualValue(startOfDay) &
+            t.startedAt.isSmallerThanValue(endOfDay),
+      );
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.startedAt)]);
+    return query.get();
+  }
+
+  Future<int> getCompletedPomodorosToday(int userId) async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final sessions =
+        await (select(pomodoroSessions)..where(
+              (t) =>
+                  t.userId.equals(userId) &
+                  t.sessionType.equals('work') &
+                  t.completed.equals(true) &
+                  t.startedAt.isBiggerOrEqualValue(startOfDay) &
+                  t.startedAt.isSmallerThanValue(endOfDay),
+            ))
+            .get();
+    return sessions.length;
+  }
+
+  Future<int> getTotalFocusMinutesToday(int userId) async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final sessions =
+        await (select(pomodoroSessions)..where(
+              (t) =>
+                  t.userId.equals(userId) &
+                  t.sessionType.equals('work') &
+                  t.completed.equals(true) &
+                  t.startedAt.isBiggerOrEqualValue(startOfDay) &
+                  t.startedAt.isSmallerThanValue(endOfDay),
+            ))
+            .get();
+    return sessions.fold<int>(0, (sum, s) => sum + s.durationMinutes);
+  }
+
+  Future<int> insertPomodoroSession(PomodoroSessionsCompanion session) =>
+      into(pomodoroSessions).insert(session);
+
+  Future<bool> updatePomodoroSession(PomodoroSession session) =>
+      update(pomodoroSessions).replace(session);
+
+  Future<PomodoroSetting?> getPomodoroSettings(int userId) => (select(
+    pomodoroSettings,
+  )..where((t) => t.userId.equals(userId))).getSingleOrNull();
+
+  Future<int> insertPomodoroSettings(PomodoroSettingsCompanion settings) =>
+      into(pomodoroSettings).insert(settings);
+
+  Future<bool> updatePomodoroSettings(PomodoroSetting settings) =>
+      update(pomodoroSettings).replace(settings);
+
+  Future<void> upsertPomodoroSettings(
+    PomodoroSettingsCompanion settings,
+  ) async {
+    await into(pomodoroSettings).insertOnConflictUpdate(settings);
+  }
 }

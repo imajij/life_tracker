@@ -195,3 +195,34 @@ final foodsByCategoryProvider =
       final db = ref.watch(databaseProvider);
       return await db.getFoods(category: category);
     });
+
+// Pomodoro providers
+final pomodoroSettingsProvider = FutureProvider<PomodoroSetting?>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return null;
+  return await db.getPomodoroSettings(user.id);
+});
+
+final todayPomodoroSessionsProvider = FutureProvider<List<PomodoroSession>>((
+  ref,
+) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return [];
+  return await db.getPomodoroSessions(userId: user.id, date: DateTime.now());
+});
+
+final completedPomodorosTodayProvider = FutureProvider<int>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return 0;
+  return await db.getCompletedPomodorosToday(user.id);
+});
+
+final totalFocusMinutesTodayProvider = FutureProvider<int>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final user = await ref.watch(currentUserProvider.future);
+  if (user == null) return 0;
+  return await db.getTotalFocusMinutesToday(user.id);
+});
