@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../../db/database.dart';
 import '../../providers/app_providers.dart';
 import '../../models/food_item.dart';
@@ -16,7 +17,9 @@ class FoodPickerScreen extends ConsumerStatefulWidget {
   ConsumerState<FoodPickerScreen> createState() => _FoodPickerScreenState();
 }
 
-class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
+class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   String? _selectedCategory;
   String _searchQuery = '';
   final _searchController = TextEditingController();
@@ -25,11 +28,13 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _initializeFoods();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -413,7 +418,7 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Category',
                     prefixIcon: Icon(Icons.category),
@@ -441,7 +446,7 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
                     SizedBox(
                       width: 100,
                       child: DropdownButtonFormField<String>(
-                        value: selectedUnit,
+                        initialValue: selectedUnit,
                         decoration: const InputDecoration(labelText: 'Unit'),
                         items: ['g', 'ml', 'piece', 'cup', 'tbsp'].map((u) {
                           return DropdownMenuItem(value: u, child: Text(u));
@@ -561,10 +566,6 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final foodsAsync = _selectedCategory != null
-        ? ref.watch(foodsByCategoryProvider(_selectedCategory))
-        : ref.watch(foodDatabaseProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Food Database'),
@@ -575,6 +576,14 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
             tooltip: 'Add Custom Food',
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.history), text: 'Recent'),
+            Tab(icon: Icon(Icons.restaurant_menu), text: 'All Foods'),
+            Tab(icon: Icon(Icons.star), text: 'Custom'),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(
@@ -587,178 +596,532 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
                 ],
               ),
             )
-          : Column(
+          : TabBarView(
+              controller: _tabController,
               children: [
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search foods...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value.toLowerCase());
-                    },
-                  ),
-                ),
+                _buildRecentTab(),
+                _buildAllFoodsTab(),
+                _buildCustomFoodsTab(),
+              ],
+            ),
+    );
+  }
 
-                // Category Filter
-                SizedBox(
-                  height: 50,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: const Text('All'),
-                          selected: _selectedCategory == null,
-                          onSelected: (_) {
-                            setState(() => _selectedCategory = null);
-                          },
-                        ),
-                      ),
-                      ...FoodCategories.all.map((category) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(FoodItem.getCategoryIcon(category)),
-                                const SizedBox(width: 4),
-                                Text(category),
-                              ],
-                            ),
-                            selected: _selectedCategory == category,
-                            onSelected: (_) {
-                              setState(() => _selectedCategory = category);
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
+  Widget _buildRecentTab() {
+    final recentEntriesAsync = ref.watch(recentFoodEntriesProvider);
+
+    return recentEntriesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (entries) {
+        if (entries.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                const Text('No recent foods'),
                 const SizedBox(height: 8),
-
-                // Food List
-                Expanded(
-                  child: foodsAsync.when(
-                    data: (foods) {
-                      // Filter by search
-                      final filteredFoods = foods.where((f) {
-                        if (_searchQuery.isEmpty) return true;
-                        return f.name.toLowerCase().contains(_searchQuery);
-                      }).toList();
-
-                      if (filteredFoods.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.fastfood,
-                                size: 64,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text('No foods found'),
-                              const SizedBox(height: 8),
-                              TextButton.icon(
-                                onPressed: _showAddCustomFood,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add Custom Food'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredFoods.length,
-                        itemBuilder: (context, index) {
-                          final food = filteredFoods[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.green.shade100,
-                                child: Text(
-                                  FoodItem.getCategoryIcon(food.category),
-                                  style: const TextStyle(fontSize: 20),
-                                ),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      food.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (food.isCustom)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange.shade100,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        'Custom',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.orange.shade900,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                '${food.caloriesPer100g.toStringAsFixed(0)} kcal/100g • '
-                                'P: ${food.proteinPer100g.toStringAsFixed(1)}g • '
-                                'C: ${food.carbsPer100g.toStringAsFixed(1)}g • '
-                                'F: ${food.fatPer100g.toStringAsFixed(1)}g',
-                                style: TextStyle(
-                                  color: Colors.grey.shade400,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              trailing: const Icon(
-                                Icons.add_circle,
-                                color: Colors.green,
-                              ),
-                              onTap: () => _showFoodDetails(food),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => Center(child: Text('Error: $error')),
-                  ),
+                Text(
+                  'Foods you log will appear here',
+                  style: TextStyle(color: Colors.grey.shade500),
                 ),
               ],
             ),
+          );
+        }
+
+        // Group by food name and count frequency
+        final foodCounts = <String, int>{};
+        final foodEntries = <String, FoodEntry>{};
+        for (final entry in entries) {
+          final name = entry.notes ?? 'Unknown';
+          foodCounts[name] = (foodCounts[name] ?? 0) + 1;
+          foodEntries[name] = entry;
+        }
+
+        // Sort by frequency (most eaten first)
+        final sortedFoods = foodCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Frequent section
+            if (sortedFoods.length > 3) ...[
+              const Text(
+                'Frequent',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: sortedFoods.take(5).length,
+                  itemBuilder: (context, index) {
+                    final item = sortedFoods[index];
+                    final entry = foodEntries[item.key]!;
+                    return _FrequentFoodCard(
+                      name: item.key,
+                      count: item.value,
+                      calories: entry.caloriesEstimated,
+                      onTap: () => _addRecentEntry(entry),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Recent entries
+            const Text(
+              'Recent',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...entries.take(20).map((entry) => _RecentEntryTile(
+                  entry: entry,
+                  onTap: () => _addRecentEntry(entry),
+                )),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addRecentEntry(FoodEntry entry) async {
+    final db = ref.read(databaseProvider);
+    final user = await db.getUser();
+    if (user == null) return;
+
+    await db.insertFoodEntry(
+      FoodEntriesCompanion.insert(
+        userId: user.id,
+        caloriesEstimated: entry.caloriesEstimated,
+        macrosJson: drift.Value(entry.macrosJson),
+        source: 'recent',
+        notes: drift.Value(entry.notes),
+      ),
+    );
+
+    ref.invalidate(todayFoodEntriesProvider);
+    ref.invalidate(todayCaloriesProvider);
+    ref.invalidate(recentFoodEntriesProvider);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added ${entry.notes ?? "food"} - ${entry.caloriesEstimated.toInt()} kcal',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  Widget _buildAllFoodsTab() {
+    final foodsAsync = _selectedCategory != null
+        ? ref.watch(foodsByCategoryProvider(_selectedCategory))
+        : ref.watch(foodDatabaseProvider);
+
+    return Column(
+      children: [
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search foods...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (value) {
+              setState(() => _searchQuery = value.toLowerCase());
+            },
+          ),
+        ),
+
+        // Category Filter
+        SizedBox(
+          height: 50,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: const Text('All'),
+                  selected: _selectedCategory == null,
+                  onSelected: (_) {
+                    setState(() => _selectedCategory = null);
+                  },
+                ),
+              ),
+              ...FoodCategories.all.map((category) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(FoodItem.getCategoryIcon(category)),
+                        const SizedBox(width: 4),
+                        Text(category),
+                      ],
+                    ),
+                    selected: _selectedCategory == category,
+                    onSelected: (_) {
+                      setState(() => _selectedCategory = category);
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Food List
+        Expanded(
+          child: foodsAsync.when(
+            data: (foods) {
+              // Filter by search
+              final filteredFoods = foods.where((f) {
+                if (_searchQuery.isEmpty) return true;
+                return f.name.toLowerCase().contains(_searchQuery);
+              }).toList();
+
+              if (filteredFoods.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.fastfood,
+                        size: 64,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No foods found'),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _showAddCustomFood,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Custom Food'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: filteredFoods.length,
+                itemBuilder: (context, index) {
+                  final food = filteredFoods[index];
+                  return _FoodListTile(
+                    food: food,
+                    onTap: () => _showFoodDetails(food),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Center(child: Text('Error: $error')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomFoodsTab() {
+    final foodsAsync = ref.watch(foodDatabaseProvider);
+
+    return foodsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (foods) {
+        final customFoods = foods.where((f) => f.isCustom).toList();
+
+        if (customFoods.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.star_border, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                const Text('No custom foods yet'),
+                const SizedBox(height: 8),
+                Text(
+                  'Create your own foods for quick access',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _showAddCustomFood,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Custom Food'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: customFoods.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: _showAddCustomFood,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add New Custom Food'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                  ),
+                ),
+              );
+            }
+            final food = customFoods[index - 1];
+            return _FoodListTile(
+              food: food,
+              onTap: () => _showFoodDetails(food),
+              onDelete: () => _deleteCustomFood(food),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteCustomFood(FoodDatabaseData food) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Custom Food'),
+        content: Text('Delete "${food.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final db = ref.read(databaseProvider);
+      await db.deleteFood(food.id);
+      ref.invalidate(foodDatabaseProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted ${food.name}')),
+        );
+      }
+    }
+  }
+}
+
+// Helper Widgets
+
+class _FrequentFoodCard extends StatelessWidget {
+  final String name;
+  final int count;
+  final double calories;
+  final VoidCallback onTap;
+
+  const _FrequentFoodCard({
+    required this.name,
+    required this.count,
+    required this.calories,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 140,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.repeat, size: 16, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${count}x',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              Text(
+                '${calories.toInt()} kcal',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentEntryTile extends StatelessWidget {
+  final FoodEntry entry;
+  final VoidCallback onTap;
+
+  const _RecentEntryTile({
+    required this.entry,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: Colors.green.shade100,
+          child: const Icon(Icons.restaurant, color: Colors.green),
+        ),
+        title: Text(
+          entry.notes ?? 'Food entry',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          DateFormat('MMM d, h:mm a').format(entry.createdAt),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${entry.caloriesEstimated.toInt()} kcal',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Icon(Icons.add_circle, color: Colors.green, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FoodListTile extends StatelessWidget {
+  final FoodDatabaseData food;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+
+  const _FoodListTile({
+    required this.food,
+    required this.onTap,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: onTap,
+        onLongPress: onDelete,
+        leading: CircleAvatar(
+          backgroundColor: Colors.green.shade100,
+          child: Text(
+            FoodItem.getCategoryIcon(food.category),
+            style: const TextStyle(fontSize: 20),
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                food.name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (food.isCustom)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Custom',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          '${food.caloriesPer100g.toStringAsFixed(0)} kcal/100g • '
+          'P: ${food.proteinPer100g.toStringAsFixed(1)}g • '
+          'C: ${food.carbsPer100g.toStringAsFixed(1)}g • '
+          'F: ${food.fatPer100g.toStringAsFixed(1)}g',
+          style: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 12,
+          ),
+        ),
+        trailing: const Icon(Icons.add_circle, color: Colors.green),
+      ),
     );
   }
 }

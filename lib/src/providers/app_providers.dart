@@ -196,6 +196,19 @@ final foodsByCategoryProvider =
       return await db.getFoods(category: category);
     });
 
+// Recent food entries provider (for quick re-add)
+final recentFoodEntriesProvider = FutureProvider<List<FoodEntry>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  // Get last 7 days of entries
+  final entries = <FoodEntry>[];
+  for (int i = 0; i < 7; i++) {
+    final date = DateTime.now().subtract(Duration(days: i));
+    final dayEntries = await db.getFoodEntries(date: date);
+    entries.addAll(dayEntries);
+  }
+  return entries;
+});
+
 // Pomodoro providers
 final pomodoroSettingsProvider = FutureProvider<PomodoroSetting?>((ref) async {
   final db = ref.watch(databaseProvider);

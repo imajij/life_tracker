@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/habit_consistency_graph.dart';
-import '../food/add_food_screen.dart';
+import '../../services/widget_service.dart';
+import '../food/nutrition_screen.dart';
 import '../water/water_tracker_screen.dart';
 import '../habits/habits_screen.dart';
 import '../study/study_tasks_screen.dart';
@@ -13,11 +14,28 @@ import '../weight/weight_tracking_screen.dart';
 import '../exercise/exercise_library_screen.dart';
 import '../pomodoro/pomodoro_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Update widget data when home screen loads
+    _updateWidgetData();
+  }
+
+  Future<void> _updateWidgetData() async {
+    final database = ref.read(databaseProvider);
+    await WidgetService.refreshWidgetData(database);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final todayCaloriesAsync = ref.watch(todayCaloriesProvider);
     final todayWaterAsync = ref.watch(todayWaterIntakeProvider);
@@ -67,6 +85,8 @@ class HomeScreen extends ConsumerWidget {
             ref.invalidate(todayWaterIntakeProvider);
             ref.invalidate(habitsProvider);
             ref.invalidate(habitCompletionsByDateProvider);
+            // Also update the home screen widget
+            await _updateWidgetData();
           },
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -85,53 +105,79 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Today's Calories
+              // Today's Calories - Tappable to navigate to Nutrition
               Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Today\'s Calories',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                child: InkWell(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NutritionScreen(),
+                      ),
+                    );
+                    ref.invalidate(todayCaloriesProvider);
+                    ref.invalidate(todayFoodEntriesProvider);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Today\'s Calories',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: Colors.grey.shade400,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      todayCaloriesAsync.when(
-                        data: (calories) {
-                          final calorieGoal =
-                              userAsync.value?.dailyCalorieGoal ?? 2000;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${calories.toStringAsFixed(0)} / $calorieGoal kcal',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
+                        const SizedBox(height: 8),
+                        todayCaloriesAsync.when(
+                          data: (calories) {
+                            final calorieGoal =
+                                userAsync.value?.dailyCalorieGoal ?? 2000;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${calories.toStringAsFixed(0)} / $calorieGoal kcal',
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              LinearProgressIndicator(
-                                value: (calories / calorieGoal).clamp(0.0, 1.0),
-                                backgroundColor: Colors.grey.shade300,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  calories > calorieGoal
-                                      ? Colors.orange
-                                      : Colors.blue,
+                                const SizedBox(height: 8),
+                                LinearProgressIndicator(
+                                  value: (calories / calorieGoal).clamp(
+                                    0.0,
+                                    1.0,
+                                  ),
+                                  backgroundColor: Colors.grey.shade300,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    calories > calorieGoal
+                                        ? Colors.orange
+                                        : Colors.blue,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        },
-                        loading: () => const CircularProgressIndicator(),
-                        error: (_, __) => const Text('Error loading'),
-                      ),
-                    ],
+                              ],
+                            );
+                          },
+                          loading: () => const CircularProgressIndicator(),
+                          error: (_, __) => const Text('Error loading'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -372,16 +418,19 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisSpacing: 16,
                 children: [
                   _QuickActionCard(
-                    icon: Icons.camera_alt,
-                    label: 'Add Food',
+                    icon: Icons.restaurant,
+                    label: 'Nutrition',
                     color: Colors.green,
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AddFoodScreen(),
+                          builder: (_) => const NutritionScreen(),
                         ),
                       );
+                      // Refresh data when coming back
+                      ref.invalidate(todayCaloriesProvider);
+                      ref.invalidate(todayFoodEntriesProvider);
                     },
                   ),
                   _QuickActionCard(

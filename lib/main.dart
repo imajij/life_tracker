@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/screens/onboarding/onboarding_screen.dart';
 import 'src/screens/home/home_screen.dart';
 import 'src/providers/app_providers.dart';
+import 'src/services/widget_service.dart';
 
 // App gradient colors for dark theme
 class AppGradients {
@@ -37,7 +38,9 @@ class AppGradients {
   );
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await WidgetService.initialize();
   runApp(const ProviderScope(child: LifeTrackerApp()));
 }
 
