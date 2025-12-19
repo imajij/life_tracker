@@ -652,10 +652,7 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen>
             if (sortedFoods.length > 3) ...[
               const Text(
                 'Frequent',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -681,16 +678,17 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen>
             // Recent entries
             const Text(
               'Recent',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ...entries.take(20).map((entry) => _RecentEntryTile(
-                  entry: entry,
-                  onTap: () => _addRecentEntry(entry),
-                )),
+            ...entries
+                .take(20)
+                .map(
+                  (entry) => _RecentEntryTile(
+                    entry: entry,
+                    onTap: () => _addRecentEntry(entry),
+                  ),
+                ),
           ],
         );
       },
@@ -941,9 +939,9 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen>
       await db.deleteFood(food.id);
       ref.invalidate(foodDatabaseProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted ${food.name}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Deleted ${food.name}')));
       }
     }
   }
@@ -1000,10 +998,7 @@ class _FrequentFoodCard extends StatelessWidget {
               ),
               Text(
                 '${calories.toInt()} kcal',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
             ],
           ),
@@ -1017,10 +1012,7 @@ class _RecentEntryTile extends StatelessWidget {
   final FoodEntry entry;
   final VoidCallback onTap;
 
-  const _RecentEntryTile({
-    required this.entry,
-    required this.onTap,
-  });
+  const _RecentEntryTile({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1062,11 +1054,7 @@ class _FoodListTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onDelete;
 
-  const _FoodListTile({
-    required this.food,
-    required this.onTap,
-    this.onDelete,
-  });
+  const _FoodListTile({required this.food, required this.onTap, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -1092,20 +1080,14 @@ class _FoodListTile extends StatelessWidget {
             ),
             if (food.isCustom)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Custom',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.orange.shade900,
-                  ),
+                  style: TextStyle(fontSize: 10, color: Colors.orange.shade900),
                 ),
               ),
           ],
@@ -1115,10 +1097,7 @@ class _FoodListTile extends StatelessWidget {
           'P: ${food.proteinPer100g.toStringAsFixed(1)}g • '
           'C: ${food.carbsPer100g.toStringAsFixed(1)}g • '
           'F: ${food.fatPer100g.toStringAsFixed(1)}g',
-          style: TextStyle(
-            color: Colors.grey.shade400,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
         ),
         trailing: const Icon(Icons.add_circle, color: Colors.green),
       ),
