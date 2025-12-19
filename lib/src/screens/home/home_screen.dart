@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/habit_consistency_graph.dart';
 import '../../services/widget_service.dart';
-import '../food/nutrition_screen.dart';
+import '../root/main_shell.dart';
 import '../water/water_tracker_screen.dart';
-import '../habits/habits_screen.dart';
 import '../study/study_tasks_screen.dart';
 import '../workouts/workouts_screen.dart';
-import '../settings/settings_screen.dart';
 import '../diet/diet_plan_screen.dart';
 import '../weight/weight_tracking_screen.dart';
 import '../exercise/exercise_library_screen.dart';
@@ -59,13 +57,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-              // Refresh user data when coming back from settings
-              ref.invalidate(currentUserProvider);
+            onPressed: () {
+              ref.read(mainShellIndexProvider.notifier).state = 3;
             },
           ),
         ],
@@ -108,15 +101,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // Today's Calories - Tappable to navigate to Nutrition
               Card(
                 child: InkWell(
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NutritionScreen(),
-                      ),
-                    );
-                    ref.invalidate(todayCaloriesProvider);
-                    ref.invalidate(todayFoodEntriesProvider);
+                  onTap: () {
+                    ref.read(mainShellIndexProvider.notifier).state = 1;
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
@@ -421,16 +407,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     icon: Icons.restaurant,
                     label: 'Nutrition',
                     color: Colors.green,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NutritionScreen(),
-                        ),
-                      );
-                      // Refresh data when coming back
-                      ref.invalidate(todayCaloriesProvider);
-                      ref.invalidate(todayFoodEntriesProvider);
+                    onTap: () {
+                      ref.read(mainShellIndexProvider.notifier).state = 1;
                     },
                   ),
                   _QuickActionCard(
@@ -467,10 +445,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     label: 'Habits',
                     color: Colors.purple,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HabitsScreen()),
-                      );
+                      ref.read(mainShellIndexProvider.notifier).state = 2;
                     },
                   ),
                   _QuickActionCard(

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../db/database.dart';
 import '../../providers/app_providers.dart';
-import '../home/home_screen.dart';
+import '../root/main_shell.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -258,7 +258,7 @@ class _ApiKeySetupScreenState extends ConsumerState<ApiKeySetupScreen> {
   void _navigateToHome() {
     Navigator.of(
       context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
   }
 
   void _showConsentDialog() {
