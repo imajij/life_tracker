@@ -10,18 +10,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GeminiService {
   final Dio _dio = Dio();
 
-  // Google Gemini API endpoint - using v1beta for Gemini 1.5 models
-  static const String _baseUrl =
+  // Google Gemini API endpoints (use v1beta by default for model availability)
+  static const String _baseUrlPrimary =
       'https://generativelanguage.googleapis.com/v1beta';
+  static const String _baseUrlFallback =
+      'https://generativelanguage.googleapis.com/v1';
 
   // Rate limiting: max calls per day (user-facing limit for free tier warning)
   static const int maxCallsPerDay = 15;
   static const String _dailyCountKey = 'ai_daily_call_count';
   static const String _dailyCountDateKey = 'ai_daily_call_date';
 
-  // Models - gemini-1.5-flash for v1beta API (correct model ID)
-  static const String _visionModel = 'gemini-1.5-flash';
-  static const String _textModel = 'gemini-1.5-flash';
+  // Models - use stable model names that work with v1beta
+  static const String _visionModel = 'gemini-pro-vision';
+  static const String _textModel = 'gemini-pro';
 
   GeminiService() {
     _dio.options.connectTimeout = const Duration(seconds: 30);
@@ -101,10 +103,10 @@ class GeminiService {
     try {
       print('DEBUG: Testing API key...');
       print('DEBUG: Using model: $_textModel');
-      print('DEBUG: API URL: $_baseUrl/models/$_textModel:generateContent');
-
-      final response = await _dio.post(
-        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+      final path = '/models/$_textModel:generateContent';
+      final response = await _postWithFallback(
+        path: path,
+        apiKey: apiKey,
         data: {
           'contents': [
             {
@@ -293,7 +295,7 @@ class GeminiService {
       );
       print('DEBUG GeminiService: Using model: $_visionModel');
       print(
-        'DEBUG GeminiService: Full URL: $_baseUrl/models/$_visionModel:generateContent',
+        'DEBUG GeminiService: Full path: /models/$_visionModel:generateContent',
       );
       print(
         'DEBUG GeminiService: API Key (first 10 chars): ${apiKey.substring(0, apiKey.length > 10 ? 10 : apiKey.length)}...',
@@ -320,8 +322,9 @@ If uncertain, estimate conservatively and reduce confidence.
 Return ONLY the JSON object, no markdown, no explanation.''';
 
       // Make API call
-      final response = await _dio.post(
-        '$_baseUrl/models/$_visionModel:generateContent?key=$apiKey',
+      final response = await _postWithFallback(
+        path: '/models/$_visionModel:generateContent',
+        apiKey: apiKey,
         data: {
           'contents': [
             {
@@ -453,8 +456,9 @@ Return ONLY a valid JSON object with this schema:
 Keep exercises safe for the user's fitness level. Include warm-up and cool-down recommendations.
 Return ONLY the JSON object, no additional text.''';
 
-      final response = await _dio.post(
-        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+      final response = await _postWithFallback(
+        path: '/models/$_textModel:generateContent',
+        apiKey: apiKey,
         data: {
           'contents': [
             {
@@ -564,8 +568,9 @@ JSON schema:
 Keep recommendations realistic, safe, and culturally appropriate.
 Return ONLY the JSON object, no markdown, no explanation.''';
 
-      final response = await _dio.post(
-        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+      final response = await _postWithFallback(
+        path: '/models/$_textModel:generateContent',
+        apiKey: apiKey,
         data: {
           'contents': [
             {
@@ -644,8 +649,9 @@ Return ONLY a valid JSON object with this schema:
 
 Return ONLY the JSON object, no additional text.''';
 
-      final response = await _dio.post(
-        '$_baseUrl/models/$_textModel:generateContent?key=$apiKey',
+      final response = await _postWithFallback(
+        path: '/models/$_textModel:generateContent',
+        apiKey: apiKey,
         data: {
           'contents': [
             {
@@ -732,5 +738,40 @@ Return ONLY the JSON object, no additional text.''';
       return 'No internet connection. Please check your network.';
     }
     return 'Network error. Please check your connection and try again.';
+  }
+
+  /// Post with automatic fallback: try v1 first (current), then v1beta on 404
+  Future<Response<dynamic>> _postWithFallback({
+    required String path,
+    required String apiKey,
+    required Map<String, dynamic> data,
+  }) async {
+    final headers = {'x-goog-api-key': apiKey};
+    final redactedKey = apiKey.length > 6
+        ? '${apiKey.substring(0, 3)}***${apiKey.substring(apiKey.length - 3)}'
+        : '***';
+    final urlPrimary = '$_baseUrlPrimary$path?key=$apiKey';
+    try {
+      print('DEBUG GeminiService: POST $urlPrimary (key: $redactedKey)');
+      return await _dio.post(
+        urlPrimary,
+        data: data,
+        options: Options(headers: headers),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        print('DEBUG GeminiService: 404 body on primary: ${e.response?.data}');
+        final urlFallback = '$_baseUrlFallback$path?key=$apiKey';
+        print(
+          'DEBUG GeminiService: 404 on primary, retrying $urlFallback (key: $redactedKey)',
+        );
+        return await _dio.post(
+          urlFallback,
+          data: data,
+          options: Options(headers: headers),
+        );
+      }
+      rethrow;
+    }
   }
 }

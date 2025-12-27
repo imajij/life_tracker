@@ -225,7 +225,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
             _AddOptionTile(
               icon: Icons.edit_note,
               title: 'Quick Add',
-              subtitle: 'Enter calories manually',
+              subtitle: 'Enter calories/macros manually',
               color: Colors.orange,
               onTap: () {
                 Navigator.pop(context);
@@ -242,6 +242,9 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
   void _showQuickAddDialog() {
     final caloriesController = TextEditingController();
     final nameController = TextEditingController();
+    final proteinController = TextEditingController();
+    final carbsController = TextEditingController();
+    final fatController = TextEditingController();
     MealType selectedMeal = _getCurrentMealType();
 
     showDialog(
@@ -273,9 +276,57 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
                 keyboardType: TextInputType.number,
                 autofocus: true,
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Icon(Icons.timeline, size: 20, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text(
+                    'Macros (g, optional)',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: proteinController,
+                      decoration: const InputDecoration(
+                        labelText: 'Protein (g)',
+                        hintText: 'e.g., 20',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: carbsController,
+                      decoration: const InputDecoration(
+                        labelText: 'Carbs (g)',
+                        hintText: 'e.g., 30',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: fatController,
+                      decoration: const InputDecoration(
+                        labelText: 'Fat (g)',
+                        hintText: 'e.g., 10',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               DropdownButtonFormField<MealType>(
-                value: selectedMeal,
+                initialValue: selectedMeal,
                 decoration: const InputDecoration(
                   labelText: 'Meal',
                   prefixIcon: Icon(Icons.schedule),
@@ -316,12 +367,48 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
                   );
                   return;
                 }
+
+                double? parseMacro(String input) {
+                  if (input.trim().isEmpty) return null;
+                  return double.tryParse(input.trim());
+                }
+
+                final protein = parseMacro(proteinController.text);
+                if (proteinController.text.trim().isNotEmpty &&
+                    protein == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Enter a valid protein amount'),
+                    ),
+                  );
+                  return;
+                }
+
+                final carbs = parseMacro(carbsController.text);
+                if (carbsController.text.trim().isNotEmpty && carbs == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid carbs amount')),
+                  );
+                  return;
+                }
+
+                final fat = parseMacro(fatController.text);
+                if (fatController.text.trim().isNotEmpty && fat == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid fat amount')),
+                  );
+                  return;
+                }
+
                 await _quickAddCalories(
                   calories,
                   nameController.text.isEmpty
                       ? 'Quick add'
                       : nameController.text,
                   selectedMeal,
+                  protein: protein,
+                  carbs: carbs,
+                  fat: fat,
                 );
                 if (mounted) {
                   Navigator.pop(context);
@@ -346,13 +433,27 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
   Future<void> _quickAddCalories(
     double calories,
     String name,
-    MealType mealType,
-  ) async {
+    MealType mealType, {
+    double? protein,
+    double? carbs,
+    double? fat,
+  }) async {
     final db = ref.read(databaseProvider);
     final user = await db.getUser();
     if (user == null) return;
 
     // Entry will use current time from database default
+
+    String? macrosJson;
+    final hasMacros = (protein ?? 0) > 0 || (carbs ?? 0) > 0 || (fat ?? 0) > 0;
+    if (hasMacros) {
+      macrosJson = jsonEncode({
+        'protein_g': protein ?? 0.0,
+        'carbs_g': carbs ?? 0.0,
+        'fat_g': fat ?? 0.0,
+        'serving_size_g': 0.0,
+      });
+    }
 
     await db.insertFoodEntry(
       FoodEntriesCompanion.insert(
@@ -360,6 +461,9 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
         caloriesEstimated: calories,
         source: 'quick_add',
         notes: drift.Value('$name (${mealType.displayName})'),
+        macrosJson: macrosJson != null
+            ? drift.Value(macrosJson)
+            : const drift.Value.absent(),
       ),
     );
 
@@ -612,7 +716,7 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen>
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.6),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
         borderRadius: BorderRadius.circular(16),
       ),
       child: TabBar(
@@ -1176,7 +1280,7 @@ class _MiniSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

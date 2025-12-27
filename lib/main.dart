@@ -98,9 +98,9 @@ class LifeTrackerApp extends StatelessWidget {
         indicatorColor: seed.withOpacity(0.16),
         height: 70,
         elevation: 12,
-        labelTextStyle: MaterialStateProperty.resolveWith(
+        labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
-            fontWeight: states.contains(MaterialState.selected)
+            fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w700
                 : FontWeight.w500,
           ),
