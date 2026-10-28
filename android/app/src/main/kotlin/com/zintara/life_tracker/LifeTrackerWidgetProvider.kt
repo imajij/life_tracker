@@ -1,4 +1,4 @@
-package com.example.life_tracker
+package com.zintara.life_tracker
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

@@ -1,4 +1,4 @@
-package com.example.life_tracker
+package com.zintara.life_tracker
 
 import io.flutter.embedding.android.FlutterActivity
 
